@@ -1,0 +1,1 @@
+* Close all docs when finished.
