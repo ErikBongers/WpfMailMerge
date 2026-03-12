@@ -10,10 +10,15 @@ public class MailMerge
     //private FrmProgress progressForm;
     private Outlook.Application outlook;
     private Word.Application word;
+    private Word.Document mainDoc;
 
     private string VAR_RECIPIENTS;
     private string VAR_ATTACHMENTS;
     private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
+    private int recCount = -1;
+    const string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
+    const string wordFileName = @"C:\Users\erikb\Desktop\MailMerge.docm";
+    const int batchLen = 20;
 
     public MailMerge()
         {
@@ -23,6 +28,9 @@ public class MailMerge
 
         VAR_RECIPIENTS = "Dko3Recepient";
         VAR_ATTACHMENTS = "Dko3Attachments";
+        resetWord();
+        mainDoc = word.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+        recCount = GetRecordCount(dataSourceFileName);
 
         AddSenders();
         }
@@ -34,6 +42,18 @@ public class MailMerge
             var acc = outlook.Session.Accounts[i];
             AddSender(acc.DisplayName, i);
             }
+        }
+
+    private void resetWord()
+        {
+        foreach (var doc in cachedWordDocs.Values)
+            {
+            doc.Close(false);
+            }
+        cachedWordDocs.Clear();
+        mainDoc?.Close(false);
+        word?.Quit();
+        word = new Word.Application();
         }
 
     public void Start()
@@ -75,13 +95,6 @@ public class MailMerge
 
     private bool MergeModifySaveAllAsync(int startIndex)
         {
-        int batchLen = 50;
-        string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
-        string wordFileName = @"C:\Users\erikb\Desktop\MailMerge.docm";
-
-        Word.Document mainDoc = word.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
-
-        int recCount = GetRecordCount(dataSourceFileName);
 
         if (recCount == -1)
             {
@@ -108,6 +121,9 @@ public class MailMerge
                 return false;
 
             currentBatchIdx += batchLen;
+            resetWord();
+            mainDoc = word.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+            //recCount = GetRecordCount(dataSourceFileName);
             }
 
         //if (!progressForm.StopRequested)
