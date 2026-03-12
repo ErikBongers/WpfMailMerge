@@ -1,16 +1,30 @@
 ﻿using System;
+using System.ComponentModel;
 using System.IO;
 using System.Text.RegularExpressions;
-using Word = Microsoft.Office.Interop.Word;
-using Outlook = Microsoft.Office.Interop.Outlook;
 using System.Windows;
+using Outlook = Microsoft.Office.Interop.Outlook;
+using Word = Microsoft.Office.Interop.Word;
 
-public class MailMerge
+public enum MailMergeSendTo
     {
+    RealEmails,
+    TestEmail
+    }
+
+public class MailMerge : INotifyPropertyChanged
+    {
+    private string statusMessage = "Initial message...";
+    public string StatusMessage { 
+        get { return statusMessage; }
+        set { statusMessage = value; OnPropertyChanged(nameof(StatusMessage)); }
+        }
+
     //private FrmProgress progressForm;
     private Outlook.Application outlook;
     private Word.Application word;
     private Word.Document mainDoc;
+    private MailMergeSendTo sendTo;
 
     private string VAR_RECIPIENTS;
     private string VAR_ATTACHMENTS;
@@ -20,8 +34,18 @@ public class MailMerge
     const string wordFileName = @"C:\Users\erikb\Desktop\MailMerge.docm";
     const int batchLen = 20;
 
-    public MailMerge()
+    public event PropertyChangedEventHandler? PropertyChanged;
+    void OnPropertyChanged(string propName)
         {
+        if (this.PropertyChanged != null)
+            this.PropertyChanged(
+                this, new PropertyChangedEventArgs(propName));
+        }
+
+
+    public MailMerge(MailMergeSendTo sendTo = MailMergeSendTo.TestEmail)
+        {
+        this.sendTo = sendTo;
         //progressForm = new FrmProgress();
         outlook = new Outlook.Application();
         word = new Word.Application();
@@ -74,7 +98,9 @@ public class MailMerge
 
         //    } while (!SendAllDocs());
         //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
-        MergeModifySaveAllAsync(0);
+        //MergeModifySaveAllAsync(0);
+        //SendAllDocs();
+        this.StatusMessage = "Starting nothing...";
         }
 
     public void AddSender(string emailAddress, int index)
@@ -193,9 +219,6 @@ public class MailMerge
 
     private void ExpandMailDoc(Word.Document doc, string recipients, string subject, string[] wordDocs, string[] attachments)
         {
-        string[] arrRecipients =
-            "erikbongers@outlook.com".Split(';');
-
         foreach (string wordDoc in wordDocs)
             {
             if (!string.IsNullOrEmpty(wordDoc))
@@ -207,13 +230,8 @@ public class MailMerge
                 docRange.FormattedText = insertDoc.Content;
                 }
             }
-
-        string strRecipients = string.Join(";", arrRecipients);
-        doc.Variables.Add(VAR_RECIPIENTS, strRecipients);
-
-        string strAtt =
-            string.Join(";", attachments.Where(a => !string.IsNullOrEmpty(a)));
-
+        doc.Variables.Add(VAR_RECIPIENTS, recipients);
+        string strAtt = string.Join(";", attachments.Where(a => !string.IsNullOrEmpty(a)));
         doc.Variables.Add(VAR_ATTACHMENTS, strAtt);
         }
 
@@ -276,7 +294,7 @@ public class MailMerge
     private bool SendAllDocs()
         {
         //int senderIndex = GetAccountIndex(progressForm.SenderAccount);
-        int senderIndex = 0;
+        int senderIndex = 1;
 
         Outlook.Account outAccount = outlook.Session.Accounts[senderIndex];
 
@@ -313,12 +331,16 @@ public class MailMerge
             catch { }
 
             doc.Content.Copy();
-            doc.Close(false);
+            Thread.Sleep(1000); //sometimes the clipboard is not ready yet, so we wait a bit
 
             Outlook.MailItem mailItem = (Outlook.MailItem)outlook.CreateItem(Outlook.OlItemType.olMailItem);
 
             mailItem.SendUsingAccount = outAccount;
 
+            if(this.sendTo == MailMergeSendTo.TestEmail)
+                {
+                recipients = new string[] { "erikbongers@outlook.com" };
+                }
             foreach (var recipient in recipients)
                 {
                 if (!string.IsNullOrEmpty(recipient))
@@ -342,6 +364,8 @@ public class MailMerge
 
             mailItem.Display();
             mailItem.Send();
+
+            doc.Close(false);
 
             i++;
             }

@@ -1,1 +1,10 @@
+* Add flag for test emailadress to send outlook emails to.
+
+* add subject to doc variables.
+
 * Close all docs when finished.
+
+* Automatically create a /tmp/merged folder if it doesn't exist.
+  > clear it if it already exists?
+
+* Send outlook per generated batch?
