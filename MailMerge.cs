@@ -218,8 +218,32 @@ public class MailMerge : INotifyPropertyChanged
     private void TestExcel()
     {
         var excel = new Excel.Application();
-        var workbook = excel.Workbooks.Open(this.DataSourceFileName);
-        var worksheet = workbook.Worksheets[1];
+        try
+        {
+            var workBook = excel.Workbooks.Open(this.DataSourceFileName);
+            foreach (Excel.Worksheet workSheet in workBook.Worksheets)
+            {
+                foreach (Excel.ListObject excelTable in workSheet.ListObjects)
+                {
+                    Console.WriteLine($"Table Name: {excelTable.Name}");
+                    Console.WriteLine($"Table Range: {excelTable.Range.Address}");
+
+                    // Example: Access data, e.g., print header
+                    // excelTable.HeaderRowRange
+                }
+            }
+
+            //read all cells
+            // Retrieve values into a 2D array
+            Excel.Worksheet workSheet1 = workBook.Worksheets[1];
+            Excel.Range usedRange = workSheet1.UsedRange;
+            object[,] data = (object[,])usedRange.Value2;
+            Debug.WriteLine(data[1, 1]);
+        }
+        finally
+        {
+            excel.Quit();
+        }
     }
 
     private bool PerformChecks()
