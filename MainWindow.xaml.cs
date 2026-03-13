@@ -16,17 +16,15 @@ namespace WpfMailMerge;
 /// </summary>
 public partial class MainWindow : Window
 {
-    MailMerge mailMerge;
 
     public MainWindow()
     {
         InitializeComponent();
-        this.mailMerge = new MailMerge(MailMergeSendTo.TestEmail);
-        this.DataContext = this.mailMerge;
         }
 
     private void btnStart_Click(object sender, RoutedEventArgs e)
         {
-        this.mailMerge.Start();
+        MailMerge? mailMerge = this.DataContext as MailMerge;
+        mailMerge?.Start();
         }
     }

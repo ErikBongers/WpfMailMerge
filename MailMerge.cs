@@ -6,30 +6,82 @@ using System.Windows;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
 
-public enum MailMergeSendTo
+namespace WpfMailMerge;
+
+public class MailAccount
     {
-    RealEmails,
-    TestEmail
+    public required string DisplayName { get; set; }
+    public required int Index { get; set; }
     }
 
 public class MailMerge : INotifyPropertyChanged
     {
     private string statusMessage = "Initial message...";
-    public string StatusMessage { 
+    public string StatusMessage
+        {
         get { return statusMessage; }
         set { statusMessage = value; OnPropertyChanged(nameof(StatusMessage)); }
         }
+    private int progressValue = 0;
+    public int ProgressValue
+        {
+        get { return progressValue; }
+        set { progressValue = value; OnPropertyChanged(nameof(ProgressValue)); }
+        }
+    private int progressMaxValue = 100;
+    public int ProgressMaxValue
+        {
+        get { return progressMaxValue; }
+        set { progressMaxValue = value; OnPropertyChanged(nameof(ProgressMaxValue)); }
+        }
+    private string progressInfo = "Progress info...";
+    public string ProgressInfo
+        {
+        get { return progressInfo; }
+        set { progressInfo = value; OnPropertyChanged(nameof(ProgressInfo)); }
+        }
+    private List<MailAccount> mailAccounts = new List<MailAccount>();
+    public List<MailAccount> MailAccounts
+        {
+        get { return mailAccounts; }
+        set { mailAccounts = value; OnPropertyChanged(nameof(MailAccounts)); }
+        }
+    private int mailAccountIndex = -1;
+    public int MailAccountIndex
+        {
+        get { return mailAccountIndex; }
+        set { mailAccountIndex = value; OnPropertyChanged(nameof(MailAccountIndex)); }
+        }
+    private bool useTestRecipient = true;
+    public bool UseTestRecipient
+        {
+        get { return useTestRecipient; }
+        set { 
+            useTestRecipient = value; OnPropertyChanged(nameof(UseTestRecipient)); 
+            TestEmailVisibility = value ? Visibility.Visible : Visibility.Hidden;
+            }
+        }
+    private string testRecipient = "erikbongers@outlook.com";
+    public string TestRecipient
+        {
+        get { return testRecipient; }
+        set { testRecipient = value; OnPropertyChanged(nameof(TestRecipient)); }
+        }
+    private Visibility testEmailVisibility = Visibility.Visible;
+    public Visibility TestEmailVisibility
+        {
+        get { return testEmailVisibility; }
+        set { testEmailVisibility = value; OnPropertyChanged(nameof(TestEmailVisibility)); }
+        }
 
-    //private FrmProgress progressForm;
     private Outlook.Application outlook;
-    private Word.Application word;
-    private Word.Document mainDoc;
-    private MailMergeSendTo sendTo;
+    private Word.Application? word;
+    private Word.Document? mainDoc;
 
-    private string VAR_RECIPIENTS;
-    private string VAR_ATTACHMENTS;
+    private string VAR_RECIPIENTS = "Dko3Recepient";
+    private string VAR_ATTACHMENTS = "Dko3Attachments";
     private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
-    private int recCount = -1;
+    private int totalRecCount = -1;
     const string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
     const string wordFileName = @"C:\Users\erikb\Desktop\MailMerge.docm";
     const int batchLen = 20;
@@ -38,38 +90,37 @@ public class MailMerge : INotifyPropertyChanged
     void OnPropertyChanged(string propName)
         {
         if (this.PropertyChanged != null)
-            this.PropertyChanged(
-                this, new PropertyChangedEventArgs(propName));
+            this.PropertyChanged(this, new PropertyChangedEventArgs(propName));
         }
 
-
-    public MailMerge(MailMergeSendTo sendTo = MailMergeSendTo.TestEmail)
+    public MailMerge()
         {
-        this.sendTo = sendTo;
-        //progressForm = new FrmProgress();
         outlook = new Outlook.Application();
-        word = new Word.Application();
-
-        VAR_RECIPIENTS = "Dko3Recepient";
-        VAR_ATTACHMENTS = "Dko3Attachments";
-        resetWord();
-        mainDoc = word.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
-        recCount = GetRecordCount(dataSourceFileName);
-
         AddSenders();
+        }
+
+    public void Initialize()
+        {
+        resetWord();
+        mainDoc = word?.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+        totalRecCount = GetRecordCount(dataSourceFileName);
+
         }
 
     private void AddSenders()
         {
+        List<MailAccount> accounts = new List<MailAccount>();
         for (int i = 1; i <= outlook.Session.Accounts.Count; i++)
             {
-            var acc = outlook.Session.Accounts[i];
-            AddSender(acc.DisplayName, i);
+            accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
             }
+        this.MailAccounts = accounts;
         }
 
     private void resetWord()
         {
+        if(this.word is null)
+            return;
         foreach (var doc in cachedWordDocs.Values)
             {
             doc.Close(false);
@@ -82,7 +133,6 @@ public class MailMerge : INotifyPropertyChanged
 
     public void Start()
         {
-        //progressForm.Show();
         //progressForm.StopRequested = true;
 
         //do
@@ -98,14 +148,10 @@ public class MailMerge : INotifyPropertyChanged
 
         //    } while (!SendAllDocs());
         //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
+        this.StatusMessage = "Starting nothing...";
+
         //MergeModifySaveAllAsync(0);
         //SendAllDocs();
-        this.StatusMessage = "Starting nothing...";
-        }
-
-    public void AddSender(string emailAddress, int index)
-        {
-        //progressForm.AddSender(emailAddress, index);
         }
 
     private int GetAccountIndex(string emailAddress)
@@ -122,7 +168,7 @@ public class MailMerge : INotifyPropertyChanged
     private bool MergeModifySaveAllAsync(int startIndex)
         {
 
-        if (recCount == -1)
+        if (this.totalRecCount == -1)
             {
             string message = "No records found. Make sure the mail merge document is the active document or reset the mail merge source.";
             MessageBox.Show(message);
@@ -135,12 +181,13 @@ public class MailMerge : INotifyPropertyChanged
         //    return false;
         //    }
 
-        //progressForm.SetInfo("Starting mail merge...");
-        //progressForm.MaxProgressValue = recCount;
+        this.StatusMessage = "Creating intermediate mail documents...";
+        this.ProgressMaxValue = totalRecCount;
+        this.setProgressInfo();
 
         int currentBatchIdx = startIndex;
 
-        while (currentBatchIdx < recCount) // && !progressForm.StopRequested)
+        while (currentBatchIdx < totalRecCount) // && !progressForm.StopRequested)
             {
             bool result = MergeModifySaveRange(currentBatchIdx, batchLen);
             if (!result)
@@ -148,24 +195,31 @@ public class MailMerge : INotifyPropertyChanged
 
             currentBatchIdx += batchLen;
             resetWord();
-            mainDoc = word.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
-            //recCount = GetRecordCount(dataSourceFileName);
+            mainDoc = word?.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
             }
 
         //if (!progressForm.StopRequested)
-        //    progressForm.SetInfo("Finished!");
+        this.StatusMessage = "Finished!";
 
         return true;
         }
 
+    private void setProgressInfo()
+        {
+        int percentage = (int)((double)ProgressValue / ProgressMaxValue * 100);
+        this.ProgressInfo = $"{ProgressValue} ({percentage}%) of {ProgressMaxValue}";
+        }
+
     private bool MergeModifySaveRange(int startIndex, int rangeLen)
         {
+        if (word is null)
+            return false;
         Word.Document mergedDoc;
         string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
 
         OpenDataSource(word, dataSourceFileName, startIndex, rangeLen);
 
-        int recCount = word.ActiveDocument.MailMerge.DataSource.RecordCount;
+        int batchRecCount = word.ActiveDocument.MailMerge.DataSource.RecordCount;
 
         string lastFieldName =
             word.ActiveDocument.MailMerge.DataSource.DataFields[
@@ -174,7 +228,7 @@ public class MailMerge : INotifyPropertyChanged
         lastFieldName = lastFieldName.Replace("vestiging", "");
         int numberOfVestigingen = GetNumbers(lastFieldName, 0);
 
-        for (int i = 1; i <= recCount; i++)
+        for (int i = 1; i <= batchRecCount; i++)
             {
             //System.Windows.Forms.Application.DoEvents();
             //if (progressForm.StopRequested)
@@ -195,7 +249,8 @@ public class MailMerge : INotifyPropertyChanged
             string voornaam = merge.DataSource.DataFields["voornaam"].Value;
             string fileIdxStr = merge.DataSource.DataFields["Idx"].Value;
 
-            //progressForm.SetProgress(fileIdxStr);
+            this.ProgressValue = int.Parse(fileIdxStr);
+            this.setProgressInfo();
 
             string[] wordDocs = new string[numberOfVestigingen];
             string[] attachments = new string[numberOfVestigingen];
@@ -210,7 +265,7 @@ public class MailMerge : INotifyPropertyChanged
 
             mergedDoc = word.ActiveDocument;
             ExpandMailDoc(mergedDoc, email, $"Start schooljaar voor {voornaam}", wordDocs, attachments);
-            mergedDoc.SaveAs2( $@"C:\Users\erikb\Desktop\Merged\File{fileIdxStr}.docx");
+            mergedDoc.SaveAs2($@"C:\Users\erikb\Desktop\Merged\File{fileIdxStr}.docx");
             mergedDoc.Close(false);
             }
 
@@ -237,6 +292,8 @@ public class MailMerge : INotifyPropertyChanged
 
     private Word.Document getCachedDoc(string wordDoc)
         {
+        if (word is null)
+            throw new InvalidOperationException("Word application is not initialized.");
         Word.Document insertDoc;
         if (this.cachedWordDocs.ContainsKey(wordDoc))
             return this.cachedWordDocs[wordDoc];
@@ -274,7 +331,8 @@ public class MailMerge : INotifyPropertyChanged
 
     private int GetRecordCount(string fileName)
         {
-
+        if (word is null)
+            throw new InvalidOperationException("Word application is not initialized.");
         word.ActiveDocument.MailMerge.OpenDataSource(
             Name: fileName,
             ConfirmConversions: false,
@@ -293,6 +351,8 @@ public class MailMerge : INotifyPropertyChanged
 
     private bool SendAllDocs()
         {
+        if (word is null)
+            throw new InvalidOperationException("Word application is not initialized.");
         //int senderIndex = GetAccountIndex(progressForm.SenderAccount);
         int senderIndex = 1;
 
@@ -302,7 +362,8 @@ public class MailMerge : INotifyPropertyChanged
 
         var files = Directory.GetFiles(dirName);
 
-        //progressForm.MaxProgressValue = files.Length;
+        this.StatusMessage = "Sending emails...";
+        this.progressMaxValue = files.Length;
 
         int i = 1;
 
@@ -316,7 +377,7 @@ public class MailMerge : INotifyPropertyChanged
             //    return false;
             //    }
 
-            //progressForm.SetProgress(i);
+            this.ProgressValue = i;
 
             Word.Document doc = word.Documents.Open(file, ReadOnly: true, Visible: false);
 
@@ -337,9 +398,9 @@ public class MailMerge : INotifyPropertyChanged
 
             mailItem.SendUsingAccount = outAccount;
 
-            if(this.sendTo == MailMergeSendTo.TestEmail)
+            if (this.UseTestRecipient)
                 {
-                recipients = new string[] { "erikbongers@outlook.com" };
+                recipients = new string[] { this.TestRecipient };
                 }
             foreach (var recipient in recipients)
                 {
