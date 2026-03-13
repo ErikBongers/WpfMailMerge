@@ -1,8 +1,26 @@
+* test checks.
+* Phases
+  0. Fill fields
+  > start
+  1. Check data
+    - merged folder clear/
+    - attachments
+    - includes
+  2. Generate docs
+  3. Send docs
+  > disable start until all fields filled.
+  Below start button show the phases.
+
+* Keep track current state.
+  > in a state file, store:
+    - which docs have been generated
+    - which docs have been sent.
+  > on restart, pick up where left off.
+    
 * add subject to doc variables.
 
 * Close all docs when finished.
 
-* Automatically create a /tmp/merged folder if it doesn't exist.
-  > clear it if it already exists?
+* Clear merged folder it if it already contains files?
 
 * Send outlook per generated batch?

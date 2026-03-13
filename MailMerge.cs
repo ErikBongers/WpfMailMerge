@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.VisualBasic;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -210,11 +211,37 @@ public class MailMerge : INotifyPropertyChanged
 
         //    } while (!SendAllDocs());
         //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
-        this.StatusMessage = "Starting nothing...";
+        if (!this.PerformChecks())
+            return;
         this.SaveJsonSettings();
 
         //MergeModifySaveAllAsync(0);
         //SendAllDocs();
+        }
+
+    private bool PerformChecks()
+        {
+        if (!File.Exists(this.WordTemplateFileName))
+            {
+            MessageBox.Show($"Word template file not found: {this.WordTemplateFileName}");
+            return false;
+            }
+        if (!File.Exists(this.DataSourceFileName))
+            {
+            MessageBox.Show($"Data source file not found: {this.DataSourceFileName}");
+            return false;
+            }
+        //check if merged file folder is empty
+        var files = Directory.GetFiles(this.mergedDocsDir, "*.docx", SearchOption.TopDirectoryOnly);
+        if (files.Length > 0) {
+            var reply = MessageBox.Show($"Merged documents directory is not empty: {this.mergedDocsDir}. Clear directory?", "Mail Merge", MessageBoxButton.YesNoCancel);
+            if (reply == MessageBoxResult.Yes) {
+                FileSystem.Kill(System.IO.Path.Combine(this.mergedDocsDir, "*.docx"));
+                }
+            else if (reply == MessageBoxResult.Cancel)
+                return false;
+            }
+        return true;
         }
 
     private int GetAccountIndex(string emailAddress)
