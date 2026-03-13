@@ -302,7 +302,6 @@ public class MailMerge : INotifyPropertyChanged
         if (word is null)
             return false;
         Word.Document mergedDoc;
-        string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
 
         OpenDataSource(word, dataSourceFileName, startIndex, rangeLen);
 
