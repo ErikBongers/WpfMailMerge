@@ -17,6 +17,14 @@ public class MailAccount
 
 public class MailMerge : INotifyPropertyChanged
     {
+    #region Properties for data binding
+    public event PropertyChangedEventHandler? PropertyChanged;
+    void OnPropertyChanged(string propName)
+        {
+        if (this.PropertyChanged != null)
+            this.PropertyChanged(this, new PropertyChangedEventArgs(propName));
+        }
+
     private string statusMessage = "Initial message...";
     public string StatusMessage
         {
@@ -86,25 +94,22 @@ public class MailMerge : INotifyPropertyChanged
         get { return dataSourceFileName; }
         set { dataSourceFileName = value; OnPropertyChanged(nameof(DataSourceFileName)); }
         }
+    #endregion
+
+    #region Constants
+    private const string VAR_RECIPIENTS = "Dko3Recepient";
+    private const string VAR_ATTACHMENTS = "Dko3Attachments";
+    private const string APP_NAME = "MailMerge";
+    private const string SETTINGS_FILENAME = "settings.json";
+    #endregion
 
     private Outlook.Application outlook;
     private Word.Application? word = null;
     private Word.Document? mainDoc;
 
-    private string VAR_RECIPIENTS = "Dko3Recepient";
-    private string VAR_ATTACHMENTS = "Dko3Attachments";
     private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
     private int totalRecCount = -1;
     const int batchLen = 20;
-    private const string APP_NAME = "MailMerge";
-    private const string SETTINGS_FILENAME = "settings.json";
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-    void OnPropertyChanged(string propName)
-        {
-        if (this.PropertyChanged != null)
-            this.PropertyChanged(this, new PropertyChangedEventArgs(propName));
-        }
 
     public MailMerge()
         {
