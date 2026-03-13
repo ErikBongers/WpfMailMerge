@@ -162,14 +162,6 @@ public class MailMerge : INotifyPropertyChanged
         }
 
 
-    public void Initialize()
-        {
-        resetWord();
-        mainDoc = word?.Documents.Open(WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
-        totalRecCount = GetRecordCount(dataSourceFileName);
-
-        }
-
     private void AddSenders()
         {
         List<MailAccount> accounts = new List<MailAccount>();
@@ -182,15 +174,16 @@ public class MailMerge : INotifyPropertyChanged
 
     private void resetWord()
         {
-        if(this.word is null)
-            return;
-        foreach (var doc in cachedWordDocs.Values)
+        if (this.word is not null)
             {
-            doc.Close(false);
+            foreach (var doc in cachedWordDocs.Values)
+                {
+                doc.Close(false);
+                }
+            cachedWordDocs.Clear();
+            mainDoc?.Close(false);
+            word?.Quit();
             }
-        cachedWordDocs.Clear();
-        mainDoc?.Close(false);
-        word?.Quit();
         word = new Word.Application();
         }
 
@@ -215,7 +208,7 @@ public class MailMerge : INotifyPropertyChanged
             return;
         this.SaveJsonSettings();
 
-        //MergeModifySaveAllAsync(0);
+        MergeModifySaveAllAsync(0);
         //SendAllDocs();
         }
 
@@ -235,11 +228,12 @@ public class MailMerge : INotifyPropertyChanged
         var files = Directory.GetFiles(this.mergedDocsDir, "*.docx", SearchOption.TopDirectoryOnly);
         if (files.Length > 0) {
             var reply = MessageBox.Show($"Merged documents directory is not empty: {this.mergedDocsDir}. Clear directory?", "Mail Merge", MessageBoxButton.YesNoCancel);
-            if (reply == MessageBoxResult.Yes) {
+            if (reply == MessageBoxResult.Cancel)
+                return false;
+            if (reply == MessageBoxResult.Yes)
+                {
                 FileSystem.Kill(System.IO.Path.Combine(this.mergedDocsDir, "*.docx"));
                 }
-            else if (reply == MessageBoxResult.Cancel)
-                return false;
             }
         return true;
         }
@@ -257,6 +251,9 @@ public class MailMerge : INotifyPropertyChanged
 
     private bool MergeModifySaveAllAsync(int startIndex)
         {
+        resetWord();
+        this.mainDoc = word?.Documents.Open(WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+        this.totalRecCount = GetRecordCount(dataSourceFileName);
 
         if (this.totalRecCount == -1)
             {
