@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
+using Excel = Microsoft.Office.Interop.Excel;
+using Microsoft.Office.Interop.Excel;
 
 namespace WpfMailMerge;
 
@@ -204,6 +206,7 @@ public class MailMerge : INotifyPropertyChanged
 
         //    } while (!SendAllDocs());
         //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
+        this.TestExcel();
         if (!this.PerformChecks())
             return;
         this.SaveJsonSettings();
@@ -211,6 +214,13 @@ public class MailMerge : INotifyPropertyChanged
         MergeModifySaveAllAsync(0);
         //SendAllDocs();
         }
+
+    private void TestExcel()
+    {
+        var excel = new Excel.Application();
+        var workbook = excel.Workbooks.Open(this.DataSourceFileName);
+        var worksheet = workbook.Worksheets[1];
+    }
 
     private bool PerformChecks()
         {
