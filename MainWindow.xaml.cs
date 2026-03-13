@@ -27,4 +27,10 @@ public partial class MainWindow : Window
         MailMerge? mailMerge = this.DataContext as MailMerge;
         mailMerge?.Start();
         }
+
+    private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+        MailMerge? mailMerge = this.DataContext as MailMerge;
+        mailMerge?.SaveJsonSettings();
+        }
     }

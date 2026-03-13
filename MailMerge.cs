@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -12,6 +13,15 @@ public class MailAccount
     {
     public required string DisplayName { get; set; }
     public required int Index { get; set; }
+    }
+
+
+public class JsonSettings
+    {
+    public required string WordTemplateFileName { get; set; }
+    public required string DataSourceFileName { get; set; }
+    public required bool UseTestRecipient { get; set; }
+    public required string TestRecipient { get; set; }
     }
 
 public class MailMerge : INotifyPropertyChanged
@@ -73,18 +83,30 @@ public class MailMerge : INotifyPropertyChanged
         get { return testEmailVisibility; }
         set { testEmailVisibility = value; OnPropertyChanged(nameof(TestEmailVisibility)); }
         }
+    private string wordTemplateFileName = @"C:\Users\erikb\Desktop\MailMerge.docm";
+    public string WordTemplateFileName
+        {
+        get { return wordTemplateFileName; }
+        set { wordTemplateFileName = value; OnPropertyChanged(nameof(WordTemplateFileName)); }
+        }
+    private string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
+    public string DataSourceFileName
+        {
+        get { return dataSourceFileName; }
+        set { dataSourceFileName = value; OnPropertyChanged(nameof(DataSourceFileName)); }
+        }
 
     private Outlook.Application outlook;
-    private Word.Application? word;
+    private Word.Application? word = null;
     private Word.Document? mainDoc;
 
     private string VAR_RECIPIENTS = "Dko3Recepient";
     private string VAR_ATTACHMENTS = "Dko3Attachments";
     private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
     private int totalRecCount = -1;
-    const string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
-    const string wordFileName = @"C:\Users\erikb\Desktop\MailMerge.docm";
     const int batchLen = 20;
+    private const string APP_NAME = "MailMerge";
+    private const string SETTINGS_FILENAME = "settings.json";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     void OnPropertyChanged(string propName)
@@ -95,14 +117,54 @@ public class MailMerge : INotifyPropertyChanged
 
     public MailMerge()
         {
+        this.LoadJsonSettings();
         outlook = new Outlook.Application();
         AddSenders();
+        // e.g.: C:\Users\erikb\AppData\Local
+        
         }
+
+    private void LoadJsonSettings()
+        {
+        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string settingsFile = Path.Combine(localDir, APP_NAME, SETTINGS_FILENAME);
+        if (File.Exists(settingsFile))
+            {
+            string json = File.ReadAllText(settingsFile);
+            // Deserialize json to load settings
+            JsonSettings? settings = System.Text.Json.JsonSerializer.Deserialize<JsonSettings>(json);
+            if (settings == null)
+                return;
+            this.WordTemplateFileName = settings.WordTemplateFileName;
+            this.DataSourceFileName = settings.DataSourceFileName;
+            this.UseTestRecipient = settings.UseTestRecipient;
+            this.TestRecipient = settings.TestRecipient;
+            }
+        }
+
+    public void SaveJsonSettings()
+        {
+        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string appDir = Path.Combine(localDir, APP_NAME);
+        if (!Directory.Exists(appDir))
+            Directory.CreateDirectory(appDir);
+        string settingsFile = Path.Combine(appDir, SETTINGS_FILENAME);
+        JsonSettings settings = new JsonSettings
+            {
+            WordTemplateFileName = this.WordTemplateFileName,
+            DataSourceFileName = this.DataSourceFileName,
+            UseTestRecipient = this.UseTestRecipient,
+            TestRecipient = this.TestRecipient
+            };
+        string json = System.Text.Json.JsonSerializer.Serialize(settings);
+        File.WriteAllText(settingsFile, json);
+        }
+
 
     public void Initialize()
         {
         resetWord();
-        mainDoc = word?.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+        mainDoc = word?.Documents.Open(WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
         totalRecCount = GetRecordCount(dataSourceFileName);
 
         }
@@ -149,6 +211,7 @@ public class MailMerge : INotifyPropertyChanged
         //    } while (!SendAllDocs());
         //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
         this.StatusMessage = "Starting nothing...";
+        this.SaveJsonSettings();
 
         //MergeModifySaveAllAsync(0);
         //SendAllDocs();
@@ -195,7 +258,7 @@ public class MailMerge : INotifyPropertyChanged
 
             currentBatchIdx += batchLen;
             resetWord();
-            mainDoc = word?.Documents.Open(wordFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+            mainDoc = word?.Documents.Open(WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
             }
 
         //if (!progressForm.StopRequested)

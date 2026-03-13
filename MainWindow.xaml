@@ -5,33 +5,40 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfMailMerge"
         mc:Ignorable="d"
-        Title="MainWindow" Height="297" Width="800">
+        Title="Mail Merge" Height="344" Width="800"
+        Closing="Window_Closing">
     <Window.DataContext>
         <local:MailMerge/>
     </Window.DataContext>
     <Grid>
-        <Button x:Name="btnStart" Content="Start" HorizontalAlignment="Left" Margin="293,227,0,0" VerticalAlignment="Top" Click="btnStart_Click" Padding="7,3,7,3"/>
-        <Label x:Name="lblStatusMessage" HorizontalAlignment="Left" Height="29" Margin="158,141,0,0" VerticalAlignment="Top" Width="508"
+        <Button x:Name="btnStart" Content="Start" HorizontalAlignment="Left" Margin="293,289,0,0" VerticalAlignment="Top" Click="btnStart_Click" Padding="7,3,7,3"/>
+        <Label x:Name="lblStatusMessage" HorizontalAlignment="Left" Height="29" Margin="158,204,0,0" VerticalAlignment="Top" Width="508"
                Content="{Binding Path=StatusMessage, UpdateSourceTrigger=PropertyChanged}"/>
-        <ProgressBar x:Name="progressBar" HorizontalAlignment="Left" Height="20" Margin="158,186,0,0" VerticalAlignment="Top" Width="508"
+        <ProgressBar x:Name="progressBar" HorizontalAlignment="Left" Height="20" Margin="158,248,0,0" VerticalAlignment="Top" Width="508"
                      Maximum="{Binding Path=ProgressMaxValue, UpdateSourceTrigger=PropertyChanged}"
                      Value="{Binding Path=ProgressValue, UpdateSourceTrigger=PropertyChanged}"
                      />
-        <Label x:Name="lblProgress" HorizontalAlignment="Left" Height="36" Margin="158,182,0,0" VerticalAlignment="Top" Width="508"
+        <Label x:Name="lblProgress" HorizontalAlignment="Left" Height="36" Margin="158,244,0,0" VerticalAlignment="Top" Width="508"
                Content="{Binding Path=ProgressInfo, UpdateSourceTrigger=PropertyChanged}"/>
-        <ComboBox x:Name="cmbSenderAccount" HorizontalAlignment="Left" Height="31" Margin="158,21,0,0" VerticalAlignment="Top" Width="508"
+        <ComboBox x:Name="cmbSenderAccount" HorizontalAlignment="Left" Height="31" Margin="158,83,0,0" VerticalAlignment="Top" Width="508"
                   ItemsSource="{Binding Path=MailAccounts}"
                   SelectedValue="{Binding Path=MailAccountIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                   SelectedValuePath="Index"
                   DisplayMemberPath="DisplayName"
                   />
-        <Label x:Name="lblSender" Content="Afzender:" HorizontalAlignment="Left" Height="26" Margin="41,26,0,0" VerticalAlignment="Top" Width="112" HorizontalContentAlignment="Right"/>
-        <Label Content="Ontvanger:" HorizontalAlignment="Left" Height="25" Margin="75,68,0,0" VerticalAlignment="Top" Width="78" HorizontalContentAlignment="Right"/>
-        <CheckBox x:Name="chkUseTestRecipient" Content="Gebruik test email" HorizontalAlignment="Left" Height="25" Margin="170,74,0,0" VerticalAlignment="Top" Width="320"
+        <Label x:Name="lblSender" Content="Afzender:" HorizontalAlignment="Left" Height="26" Margin="41,88,0,0" VerticalAlignment="Top" Width="112" HorizontalContentAlignment="Right"/>
+        <Label Content="Ontvanger:" HorizontalAlignment="Left" Height="25" Margin="75,130,0,0" VerticalAlignment="Top" Width="78" HorizontalContentAlignment="Right"/>
+        <CheckBox x:Name="chkUseTestRecipient" Content="Gebruik test email" HorizontalAlignment="Left" Height="25" Margin="170,136,0,0" VerticalAlignment="Top" Width="320"
                   IsChecked="{Binding Path=UseTestRecipient, Mode=TwoWay}"/>
-        <TextBox x:Name="txtRecipient" HorizontalAlignment="Left" Height="32" Margin="158,104,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="508"
+        <TextBox x:Name="txtRecipient" HorizontalAlignment="Left" Height="32" Margin="158,166,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="508"
                  Text="{Binding Path=TestRecipient}"
                  Visibility="{Binding Path=TestEmailVisibility}"/>
+        <Label x:Name="lblWordTemplate" Content="Word template:" HorizontalAlignment="Left" Height="24" Margin="41,10,0,0" VerticalAlignment="Top" Width="112" HorizontalContentAlignment="Right"/>
+        <TextBox x:Name="txtWordTemplate" HorizontalAlignment="Left" Height="24" Margin="158,10,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="508"
+                 Text="{Binding Path=WordTemplateFileName}"/>
+        <Label x:Name="lblDataSource" Content="Excel lijst:" HorizontalAlignment="Left" Height="26" Margin="41,34,0,0" VerticalAlignment="Top" Width="112" HorizontalContentAlignment="Right"/>
+        <TextBox x:Name="txtDataSource" HorizontalAlignment="Left" Height="21" Margin="158,39,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="508"
+                 Text="{Binding Path=DataSourceFileName}"/>
 
     </Grid>
 </Window>
