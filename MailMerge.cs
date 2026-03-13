@@ -15,15 +15,6 @@ public class MailAccount
     public required int Index { get; set; }
     }
 
-
-public class JsonSettings
-    {
-    public required string WordTemplateFileName { get; set; }
-    public required string DataSourceFileName { get; set; }
-    public required bool UseTestRecipient { get; set; }
-    public required string TestRecipient { get; set; }
-    }
-
 public class MailMerge : INotifyPropertyChanged
     {
     private string statusMessage = "Initial message...";
