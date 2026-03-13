@@ -99,6 +99,7 @@ public class MailMerge : INotifyPropertyChanged
     #region Constants
     private const string VAR_RECIPIENTS = "Dko3Recepient";
     private const string VAR_ATTACHMENTS = "Dko3Attachments";
+    private const string VAR_SUBJECT = "Dko3Subject";
     private const string APP_NAME = "MailMerge";
     private const string SETTINGS_FILENAME = "settings.json";
     #endregion
@@ -110,14 +111,17 @@ public class MailMerge : INotifyPropertyChanged
     private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
     private int totalRecCount = -1;
     const int batchLen = 20;
+    private readonly string mergedDocsDir;
 
     public MailMerge()
         {
         this.LoadJsonSettings();
         outlook = new Outlook.Application();
         AddSenders();
-        // e.g.: C:\Users\erikb\AppData\Local
-        
+        this.mergedDocsDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), APP_NAME, "Merged");
+        if (!Directory.Exists(this.mergedDocsDir))
+            Directory.CreateDirectory(this.mergedDocsDir);
+        Debug.WriteLine($"Merged docs directory: {this.mergedDocsDir}");
         }
 
     private void LoadJsonSettings()
@@ -324,7 +328,7 @@ public class MailMerge : INotifyPropertyChanged
 
             mergedDoc = word.ActiveDocument;
             ExpandMailDoc(mergedDoc, email, $"Start schooljaar voor {voornaam}", wordDocs, attachments);
-            mergedDoc.SaveAs2($@"C:\Users\erikb\Desktop\Merged\File{fileIdxStr}.docx");
+            mergedDoc.SaveAs2(Path.Combine(this.mergedDocsDir, $"File{fileIdxStr}.docx"));
             mergedDoc.Close(false);
             }
 
@@ -347,6 +351,7 @@ public class MailMerge : INotifyPropertyChanged
         doc.Variables.Add(VAR_RECIPIENTS, recipients);
         string strAtt = string.Join(";", attachments.Where(a => !string.IsNullOrEmpty(a)));
         doc.Variables.Add(VAR_ATTACHMENTS, strAtt);
+        doc.Variables.Add(VAR_SUBJECT, subject);
         }
 
     private Word.Document getCachedDoc(string wordDoc)
@@ -417,9 +422,7 @@ public class MailMerge : INotifyPropertyChanged
 
         Outlook.Account outAccount = outlook.Session.Accounts[senderIndex];
 
-        string dirName = @"C:\Users\erikb\Desktop\Merged\";
-
-        var files = Directory.GetFiles(dirName);
+        var files = Directory.GetFiles(this.mergedDocsDir);
 
         this.StatusMessage = "Sending emails...";
         this.progressMaxValue = files.Length;
