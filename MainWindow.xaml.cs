@@ -1,13 +1,4 @@
-﻿using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+﻿using System.Windows;
 
 namespace WpfMailMerge;
 
@@ -24,13 +15,13 @@ public partial class MainWindow : Window
 
     private void btnStart_Click(object sender, RoutedEventArgs e)
         {
-        MailMerge? mailMerge = this.DataContext as MailMerge;
-        mailMerge?.Start();
+        MailMergeViewModel? mailMergeViewModel = this.DataContext as MailMergeViewModel;
+        mailMergeViewModel?.Start();
         }
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-        MailMerge? mailMerge = this.DataContext as MailMerge;
+        MailMergeViewModel? mailMerge = this.DataContext as MailMergeViewModel;
         mailMerge?.SaveJsonSettings();
         }
     }

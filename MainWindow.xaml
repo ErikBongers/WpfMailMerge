@@ -34,13 +34,13 @@
             <StackPanel Orientation="Vertical" Margin="10">
                 <DockPanel LastChildFill="True">
                     <Label x:Name="lblSender" Content="Afzender:" HorizontalAlignment="Left" VerticalAlignment="Top" Width="100" HorizontalContentAlignment="Right"
-                       Visibility="{Binding SenderComboVisibilityx}"/>
+                       Visibility="{Binding SenderComboVisibility}"/>
                     <ComboBox x:Name="cmbSenderAccount" VerticalAlignment="Center"
-                              ItemsSource="{Binding Path=MailAccounts}"
+                              ItemsSource="{Binding Path=MailAccounts.Result}"
                               SelectedValue="{Binding Path=MailAccountIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               SelectedValuePath="Index"
                               DisplayMemberPath="DisplayName"
-                              Visibility="{Binding SenderComboVisibilityx}"
+                              Visibility="{Binding SenderComboVisibility}"
                               />
                 </DockPanel>
                 <DockPanel LastChildFill="True">
