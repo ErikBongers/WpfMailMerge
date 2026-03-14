@@ -1,5 +1,4 @@
 ﻿using Microsoft.VisualBasic;
-using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -8,7 +7,6 @@ using System.Windows;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
 using Excel = Microsoft.Office.Interop.Excel;
-using Microsoft.Office.Interop.Excel;
 
 namespace WpfMailMerge;
 
@@ -18,7 +16,7 @@ public class MailAccount
     public required int Index { get; set; }
     }
 
-public class MailMerge : INotifyPropertyChanged
+public class MailMergeViewModel : INotifyPropertyChanged
     {
     #region Properties for data binding
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -129,7 +127,7 @@ public class MailMerge : INotifyPropertyChanged
     const int batchLen = 20;
     private readonly string mergedDocsDir;
 
-    public MailMerge()
+    public MailMergeViewModel()
         {
         this.LoadJsonSettings();
         outlook = new Outlook.Application();
