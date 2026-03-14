@@ -516,6 +516,7 @@ public class MailMerge : INotifyPropertyChanged
             Outlook.MailItem mailItem = (Outlook.MailItem)outlook.CreateItem(Outlook.OlItemType.olMailItem);
 
             mailItem.SendUsingAccount = outAccount;
+            mailItem.SentOnBehalfOfName = "academie.berchem.muziek.woord@stedelijkonderwijs.be";
 
             if (this.UseTestRecipient)
                 {
