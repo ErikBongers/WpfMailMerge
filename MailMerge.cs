@@ -28,7 +28,7 @@ public class MailMerge : INotifyPropertyChanged
             this.PropertyChanged(this, new PropertyChangedEventArgs(propName));
         }
 
-    private string statusMessage = "Initial message...";
+    private string statusMessage = "<Status message>";
     public string StatusMessage
         {
         get { return statusMessage; }
@@ -46,17 +46,21 @@ public class MailMerge : INotifyPropertyChanged
         get { return progressMaxValue; }
         set { progressMaxValue = value; OnPropertyChanged(nameof(ProgressMaxValue)); }
         }
-    private string progressInfo = "Progress info...";
+    private string progressInfo = "<Progress info>";
     public string ProgressInfo
         {
         get { return progressInfo; }
         set { progressInfo = value; OnPropertyChanged(nameof(ProgressInfo)); }
         }
-    private List<MailAccount> mailAccounts = new List<MailAccount>();
+    private List<MailAccount> mailAccounts = new List<MailAccount>([new MailAccount { DisplayName="Loading...", Index=-1}]);
     public List<MailAccount> MailAccounts
         {
         get { return mailAccounts; }
-        set { mailAccounts = value; OnPropertyChanged(nameof(MailAccounts)); }
+        set { 
+            mailAccounts = value; 
+            OnPropertyChanged(nameof(MailAccounts));
+            OnPropertyChanged(nameof(SenderComboVisibility));
+            }
         }
     private int mailAccountIndex = -1;
     public int MailAccountIndex
@@ -103,6 +107,9 @@ public class MailMerge : INotifyPropertyChanged
         get { return onBehalfOfEmail; }
         set { onBehalfOfEmail = value; OnPropertyChanged(nameof(OnBehalfOfEmail)); }
         }
+    public Visibility SenderComboVisibility {
+        get { return this.MailAccounts.Count == 3 ? Visibility.Collapsed : Visibility.Visible; } //todo: test for 1 !!!
+        }
     #endregion
 
     #region Constants
@@ -126,7 +133,11 @@ public class MailMerge : INotifyPropertyChanged
         {
         this.LoadJsonSettings();
         outlook = new Outlook.Application();
-        AddSenders();
+        this.MailAccounts = GetSenders();
+        if (this.mailAccounts.Count == 1)
+            {
+            this.MailAccountIndex = this.mailAccounts[0].Index;
+            }
         this.mergedDocsDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), APP_NAME, "Merged");
         if (!Directory.Exists(this.mergedDocsDir))
             Directory.CreateDirectory(this.mergedDocsDir);
@@ -170,17 +181,17 @@ public class MailMerge : INotifyPropertyChanged
         }
 
 
-    private void AddSenders()
+    private List<MailAccount> GetSenders()
         {
         List<MailAccount> accounts = new List<MailAccount>();
         for (int i = 1; i <= outlook.Session.Accounts.Count; i++)
             {
             accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
             }
-        this.MailAccounts = accounts;
+        return accounts;
         }
 
-    private void resetWord()
+    private Word.Application resetWord()
         {
         if (this.word is not null)
             {
@@ -193,6 +204,7 @@ public class MailMerge : INotifyPropertyChanged
             word?.Quit();
             }
         word = new Word.Application();
+        return word;
         }
 
     public void Start()
@@ -479,11 +491,9 @@ public class MailMerge : INotifyPropertyChanged
     private bool SendAllDocs()
         {
         if (word is null)
-            this.resetWord();
-        //int senderIndex = GetAccountIndex(progressForm.SenderAccount);
-        int senderIndex = 1;
+            this.word = this.resetWord();
 
-        Outlook.Account outAccount = outlook.Session.Accounts[senderIndex];
+        Outlook.Account outAccount = outlook.Session.Accounts[this.MailAccountIndex];
 
         var files = Directory.GetFiles(this.mergedDocsDir);
 

@@ -5,43 +5,77 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfMailMerge"
         mc:Ignorable="d"
-        Title="Mail Merge" Height="429" Width="800"
+        Title="Mail Merge" 
+        SizeToContent = "WidthAndHeight"
+        Width="700" Height="Auto"
+        MinWidth="700" MinHeight="382"
+        MaxWidth = "{Binding SystemParameters.MaximizedPrimaryScreenWidth}"
+        MaxHeight = "{Binding SystemParameters.MaximizedPrimaryScreenHeight}"
         Closing="Window_Closing">
     <Window.DataContext>
         <local:MailMerge/>
     </Window.DataContext>
-    <Grid>
-        <Button x:Name="btnStart" Content="Start" HorizontalAlignment="Left" Margin="293,345,0,0" VerticalAlignment="Top" Click="btnStart_Click" Padding="7,3,7,3"/>
-        <Label x:Name="lblStatusMessage" HorizontalAlignment="Left" Height="29" Margin="158,260,0,0" VerticalAlignment="Top" Width="508"
+    <StackPanel Orientation="Vertical" Margin="10,10,10,20">
+        <GroupBox Header="Gegevens">
+            <StackPanel Orientation="Vertical" Margin="10">
+                <DockPanel LastChildFill="True">
+                    <Label x:Name="lblWordTemplate" Width="100" Content="Word template:" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
+                    <TextBox x:Name="txtWordTemplate" VerticalAlignment="Center"
+                     Text="{Binding Path=WordTemplateFileName}"/>
+                </DockPanel>
+                <DockPanel LastChildFill="True">
+                    <Label x:Name="lblDataSource" Width="100" Content="Excel lijst:" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
+                    <TextBox x:Name="txtDataSource" VerticalAlignment="Center"
+                     Text="{Binding Path=DataSourceFileName}"/>
+                </DockPanel>
+            </StackPanel>
+        </GroupBox>
+        <GroupBox Header="E-mail">
+            <StackPanel Orientation="Vertical" Margin="10">
+                <DockPanel LastChildFill="True">
+                    <Label x:Name="lblSender" Content="Afzender:" HorizontalAlignment="Left" VerticalAlignment="Top" Width="100" HorizontalContentAlignment="Right"
+                       Visibility="{Binding SenderComboVisibilityx}"/>
+                    <ComboBox x:Name="cmbSenderAccount" VerticalAlignment="Center"
+                              ItemsSource="{Binding Path=MailAccounts}"
+                              SelectedValue="{Binding Path=MailAccountIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              SelectedValuePath="Index"
+                              DisplayMemberPath="DisplayName"
+                              Visibility="{Binding SenderComboVisibilityx}"
+                              />
+                </DockPanel>
+                <DockPanel LastChildFill="True">
+                    <Label x:Name="lblOnBehalfOf" Content="In naam van:" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"/>
+                    <TextBox x:Name="txtOnBehalfOf" VerticalAlignment="Center"
+                         Text="{Binding Path=OnBehalfOfEmail, Mode=TwoWay}"/>
+                </DockPanel>
+                <DockPanel LastChildFill="True">
+                    <Label Content="Ontvanger:" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"/>
+                    <CheckBox x:Name="chkUseTestRecipient" Content="Gebruik test email" VerticalAlignment="Center"
+                              IsChecked="{Binding Path=UseTestRecipient, Mode=TwoWay}"/>
+                </DockPanel>
+                <DockPanel LastChildFill="True">
+                    <Label Content="Test e-mail:" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"
+                           Visibility="{Binding Path=TestEmailVisibility}"/>
+                    <TextBox x:Name="txtRecipient" VerticalAlignment="Top"
+                         Text="{Binding Path=TestRecipient}"
+                         Visibility="{Binding Path=TestEmailVisibility}"/>
+                </DockPanel>
+            </StackPanel>
+        </GroupBox>
+        <DockPanel LastChildFill="True" Margin="0,20,0,0">
+            <Button x:Name="btnStart" Content="Start" VerticalAlignment="Top" Click="btnStart_Click" Width="100"/>
+        </DockPanel>
+        <DockPanel LastChildFill="True">
+            <Label x:Name="lblStatusMessage" Height="29" VerticalAlignment="Top" Margin="50,0,50,0"
                Content="{Binding Path=StatusMessage, UpdateSourceTrigger=PropertyChanged}"/>
-        <ProgressBar x:Name="progressBar" HorizontalAlignment="Left" Height="20" Margin="158,304,0,0" VerticalAlignment="Top" Width="508"
-                     Maximum="{Binding Path=ProgressMaxValue, UpdateSourceTrigger=PropertyChanged}"
-                     Value="{Binding Path=ProgressValue, UpdateSourceTrigger=PropertyChanged}"
-                     />
-        <Label x:Name="lblProgress" HorizontalAlignment="Left" Height="36" Margin="158,300,0,0" VerticalAlignment="Top" Width="508"
+        </DockPanel>
+        <Grid Margin="50,0,50,0">
+            <ProgressBar x:Name="progressBar" Height="20"
+                         Maximum="{Binding Path=ProgressMaxValue, UpdateSourceTrigger=PropertyChanged}"
+                         Value="{Binding Path=ProgressValue, UpdateSourceTrigger=PropertyChanged}"
+                         />
+            <Label x:Name="lblProgress"
                Content="{Binding Path=ProgressInfo, UpdateSourceTrigger=PropertyChanged}"/>
-        <ComboBox x:Name="cmbSenderAccount" HorizontalAlignment="Left" Height="31" Margin="158,83,0,0" VerticalAlignment="Top" Width="508"
-                  ItemsSource="{Binding Path=MailAccounts}"
-                  SelectedValue="{Binding Path=MailAccountIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  SelectedValuePath="Index"
-                  DisplayMemberPath="DisplayName"
-                  />
-        <Label x:Name="lblSender" Content="Afzender:" HorizontalAlignment="Left" Height="26" Margin="41,88,0,0" VerticalAlignment="Top" Width="112" HorizontalContentAlignment="Right"/>
-        <Label Content="Ontvanger:" HorizontalAlignment="Left" Height="25" Margin="75,186,0,0" VerticalAlignment="Top" Width="78" HorizontalContentAlignment="Right"/>
-        <CheckBox x:Name="chkUseTestRecipient" Content="Gebruik test email" HorizontalAlignment="Left" Height="25" Margin="158,0,0,0" VerticalAlignment="Center" Width="320"
-                  IsChecked="{Binding Path=UseTestRecipient, Mode=TwoWay}"/>
-        <TextBox x:Name="txtRecipient" HorizontalAlignment="Left" Height="32" Margin="158,222,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="508"
-                 Text="{Binding Path=TestRecipient}"
-                 Visibility="{Binding Path=TestEmailVisibility}"/>
-        <Label x:Name="lblWordTemplate" Content="Word template:" HorizontalAlignment="Left" Height="24" Margin="41,10,0,0" VerticalAlignment="Top" Width="112" HorizontalContentAlignment="Right"/>
-        <TextBox x:Name="txtWordTemplate" HorizontalAlignment="Left" Height="24" Margin="158,10,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="508"
-                 Text="{Binding Path=WordTemplateFileName}"/>
-        <Label x:Name="lblDataSource" Content="Excel lijst:" HorizontalAlignment="Left" Height="26" Margin="41,34,0,0" VerticalAlignment="Top" Width="112" HorizontalContentAlignment="Right"/>
-        <TextBox x:Name="txtDataSource" HorizontalAlignment="Left" Height="21" Margin="158,39,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="508"
-                 Text="{Binding Path=DataSourceFileName}"/>
-        <Label x:Name="lblOnBehalfOf" Content="In naam van:" HorizontalAlignment="Left" Height="28" Margin="41,124,0,0" VerticalAlignment="Top" Width="112" HorizontalContentAlignment="Right"/>
-        <TextBox x:Name="txtOnBehalfOf" HorizontalAlignment="Left" Height="28" Margin="158,124,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="508"
-                 Text="{Binding Path=OnBehalfOfEmail, Mode=TwoWay}"/>
-
-    </Grid>
+        </Grid>
+    </StackPanel>
 </Window>
