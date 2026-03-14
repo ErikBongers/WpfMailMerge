@@ -206,13 +206,13 @@ public class MailMerge : INotifyPropertyChanged
 
         //    } while (!SendAllDocs());
         //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
-        this.TestExcel();
-        if (!this.PerformChecks())
-            return;
+        //this.TestExcel();
+        //if (!this.PerformChecks())
+        //    return;
         this.SaveJsonSettings();
 
-        MergeModifySaveAllAsync(0);
-        //SendAllDocs();
+        //MergeModifySaveAllAsync(0);
+        SendAllDocs();
         }
 
     private void TestExcel()
@@ -473,7 +473,7 @@ public class MailMerge : INotifyPropertyChanged
     private bool SendAllDocs()
         {
         if (word is null)
-            throw new InvalidOperationException("Word application is not initialized.");
+            this.resetWord();
         //int senderIndex = GetAccountIndex(progressForm.SenderAccount);
         int senderIndex = 1;
 
@@ -529,8 +529,12 @@ public class MailMerge : INotifyPropertyChanged
 
             foreach (var att in attachments)
                 {
-                if (!string.IsNullOrEmpty(att))
-                    mailItem.Attachments.Add(att);
+                if (!string.IsNullOrEmpty(att)){
+                    string fileName = Path.GetFileName(att);
+                    string neWDir = @"C:\NoSharePoint\Attachments";
+                    string newPath = Path.Combine(neWDir, fileName);
+                    mailItem.Attachments.Add(newPath);
+                }
                 }
 
             mailItem.Subject = "subject";
