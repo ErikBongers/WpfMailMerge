@@ -97,6 +97,12 @@ public class MailMerge : INotifyPropertyChanged
         get { return dataSourceFileName; }
         set { dataSourceFileName = value; OnPropertyChanged(nameof(DataSourceFileName)); }
         }
+    private string onBehalfOfEmail = "academie.berchem.muziek.woord@stedelijkonderwijs.be";
+    public string OnBehalfOfEmail 
+        {
+        get { return onBehalfOfEmail; }
+        set { onBehalfOfEmail = value; OnPropertyChanged(nameof(OnBehalfOfEmail)); }
+        }
     #endregion
 
     #region Constants
