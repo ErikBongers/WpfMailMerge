@@ -6,424 +6,410 @@ using Microsoft.VisualBasic;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
 
-namespace WpfMailMerge
+namespace WpfMailMerge;
+
+internal class MailMerge
     {
-    internal class MailMerge
+    private Outlook.Application? outlook;
+    private Word.Application? word = null;
+    private Word.Document? mainDoc;
+
+    private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
+    private int totalRecCount = -1;
+    const int batchLen = 20;
+    private IProgressObservable progressListener;
+    private int progressMaxValue;
+
+    public MailMerge()
         {
-        private Outlook.Application? outlook;
-        private Word.Application? word = null;
-        private Word.Document? mainDoc;
+        this.progressListener = new DummyProgressObservable();
+        }
 
-        private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
-        private int totalRecCount = -1;
-        const int batchLen = 20;
-        private readonly string mergedDocsDir;
-        private IProgressObservable progressListener;
-        private int progressMaxValue;
+    public void SetProgressObservable(IProgressObservable progressListener) => this.progressListener = progressListener;
 
-        #region Constants
-        private const string VAR_RECIPIENTS = "Dko3Recepient";
-        private const string VAR_ATTACHMENTS = "Dko3Attachments";
-        private const string VAR_SUBJECT = "Dko3Subject";
-        public const string APP_NAME = "MailMerge";
-        #endregion
+    private Outlook.Application GetOutlook()
+        {
+        if (this.outlook is null)
+            this.outlook = new Outlook.Application();
+        return this.outlook;
+        }
 
-        public MailMerge()
+    public List<MailAccount> GetSenders()
+        {
+        if(this.outlook is null)
+            outlook = new Outlook.Application();
+        List<MailAccount> accounts = new List<MailAccount>();
+        for (int i = 1; i <= outlook.Session.Accounts.Count; i++)
             {
-            this.progressListener = new DummyProgressObservable();
-            this.mergedDocsDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), APP_NAME, "Merged");
-            if (!Directory.Exists(this.mergedDocsDir))
-                Directory.CreateDirectory(this.mergedDocsDir);
-            Debug.WriteLine($"Merged docs directory: {this.mergedDocsDir}");
+            accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
             }
+        return accounts;
+        }
 
-        public void SetProgressObservable(IProgressObservable progressListener) => this.progressListener = progressListener;
-
-        private Outlook.Application GetOutlook()
+    public static List<MailAccount> GetSendersAsync()
+        {
+        var outlook = new Outlook.Application();
+        List<MailAccount> accounts = new List<MailAccount>();
+        for (int i = 1; i <= outlook.Session.Accounts.Count; i++)
             {
-            if (this.outlook is null)
-                this.outlook = new Outlook.Application();
-            return this.outlook;
+            accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
             }
+        outlook.Quit();
+        return accounts;
+        }
 
-        public List<MailAccount> GetSenders()
+    private Word.Application resetWord()
+        {
+        if (this.word is not null)
             {
-            if(this.outlook is null)
-                outlook = new Outlook.Application();
-            List<MailAccount> accounts = new List<MailAccount>();
-            for (int i = 1; i <= outlook.Session.Accounts.Count; i++)
+            foreach (var doc in cachedWordDocs.Values)
                 {
-                accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
+                doc.Close(false);
                 }
-            return accounts;
+            cachedWordDocs.Clear();
+            mainDoc?.Close(false);
+            word?.Quit();
             }
+        word = new Word.Application();
+        return word;
+        }
 
-        public static List<MailAccount> GetSendersAsync()
+    public void Start(JsonSettings settings)
+        {
+        //progressForm.StopRequested = true;
+
+        //do
+        //    {
+        //    do
+        //        {
+        //        System.Windows.Forms.Application.DoEvents();
+
+        //        if (!progressForm.StopRequested)
+        //            break;
+
+        //        } while (true);
+
+        //    } while (!SendAllDocs());
+        //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
+        //this.TestExcel();
+        //if (!this.PerformChecks())
+        //    return;
+        //this.SaveJsonSettings();
+
+        //MergeModifySaveAllAsync(0);
+        //SendAllDocs(settings);
+        //DocBuilder docBuilder = new DocBuilder(settings.WordTemplateFileName);
+        ExcelDataSource excelDataSource = new ExcelDataSource(settings.DataSourceFileName);
+        if (settings.NamedRange == null)
+            return;
+        var data = excelDataSource.GetData(settings.NamedRange);
+        var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
+        docBuilder.BuildDoc(1);
+        }
+
+    private bool PerformChecks(JsonSettings settings)
+        {
+        if (!File.Exists(settings.WordTemplateFileName))
             {
-            var outlook = new Outlook.Application();
-            List<MailAccount> accounts = new List<MailAccount>();
-            for (int i = 1; i <= outlook.Session.Accounts.Count; i++)
-                {
-                accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
-                }
-            outlook.Quit();
-            return accounts;
+            MessageBox.Show($"Word template file not found: {settings.WordTemplateFileName}");
+            return false;
             }
-
-        private Word.Application resetWord()
+        if (!File.Exists(settings.DataSourceFileName))
             {
-            if (this.word is not null)
-                {
-                foreach (var doc in cachedWordDocs.Values)
-                    {
-                    doc.Close(false);
-                    }
-                cachedWordDocs.Clear();
-                mainDoc?.Close(false);
-                word?.Quit();
-                }
-            word = new Word.Application();
-            return word;
+            MessageBox.Show($"Data source file not found: {settings.DataSourceFileName}");
+            return false;
             }
-
-        public void Start(JsonSettings settings)
+        //check if merged file folder is empty
+        if (DocBuilder.IsMergeDirEmpty())
             {
-            //progressForm.StopRequested = true;
-
-            //do
-            //    {
-            //    do
-            //        {
-            //        System.Windows.Forms.Application.DoEvents();
-
-            //        if (!progressForm.StopRequested)
-            //            break;
-
-            //        } while (true);
-
-            //    } while (!SendAllDocs());
-            //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
-            //this.TestExcel();
-            //if (!this.PerformChecks())
-            //    return;
-            //this.SaveJsonSettings();
-
-            //MergeModifySaveAllAsync(0);
-            //SendAllDocs(settings);
-            //DocBuilder docBuilder = new DocBuilder(settings.WordTemplateFileName);
-            ExcelDataSource excelDataSource = new ExcelDataSource(settings.DataSourceFileName);
-            if (settings.NamedRange == null)
-                return;
-            var data = excelDataSource.GetData(settings.NamedRange);
-            var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
-                docBuilder.BuildDoc(@"C:\NoSharePoint\Output\FinalDoc.docx", 1);
-            }
-
-        private bool PerformChecks(JsonSettings settings)
-            {
-            if (!File.Exists(settings.WordTemplateFileName))
-                {
-                MessageBox.Show($"Word template file not found: {settings.WordTemplateFileName}");
+            var reply = MessageBox.Show("Merged documents directory is not empty. Clear directory?", "Mail Merge", MessageBoxButton.YesNoCancel);
+            if (reply == MessageBoxResult.Cancel)
                 return false;
-                }
-            if (!File.Exists(settings.DataSourceFileName))
+            if (reply == MessageBoxResult.Yes)
                 {
-                MessageBox.Show($"Data source file not found: {settings.DataSourceFileName}");
-                return false;
+                DocBuilder.ClearMergeDir();
                 }
-            //check if merged file folder is empty
-            var files = Directory.GetFiles(this.mergedDocsDir, "*.docx", SearchOption.TopDirectoryOnly);
-            if (files.Length > 0)
-                {
-                var reply = MessageBox.Show($"Merged documents directory is not empty: {this.mergedDocsDir}. Clear directory?", "Mail Merge", MessageBoxButton.YesNoCancel);
-                if (reply == MessageBoxResult.Cancel)
-                    return false;
-                if (reply == MessageBoxResult.Yes)
-                    {
-                    FileSystem.Kill(System.IO.Path.Combine(this.mergedDocsDir, "*.docx"));
-                    }
-                }
+            }
+        return true;
+        }
+
+    private int GetAccountIndex(string emailAddress)
+        {
+        for (int i = 1; i <= this.GetOutlook().Session.Accounts.Count; i++)
+            {
+            if (this.GetOutlook().Session.Accounts[i].DisplayName == emailAddress)
+                return i;
+            }
+
+        return -1;
+        }
+
+    private bool MergeModifySaveAllAsync(int startIndex, JsonSettings settings)
+        {
+        resetWord();
+        this.mainDoc = word?.Documents.Open(settings.WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+        this.totalRecCount = GetRecordCount(settings.DataSourceFileName);
+
+        if (this.totalRecCount == -1)
+            {
+            string message = "No records found. Make sure the mail merge document is the active document or reset the mail merge source.";
+            MessageBox.Show(message);
             return true;
             }
 
-        private int GetAccountIndex(string emailAddress)
-            {
-            for (int i = 1; i <= this.GetOutlook().Session.Accounts.Count; i++)
-                {
-                if (this.GetOutlook().Session.Accounts[i].DisplayName == emailAddress)
-                    return i;
-                }
+        //if (string.IsNullOrEmpty(progressForm.SenderAccount))
+        //    {
+        //    System.Windows.Forms.MessageBox.Show("Select a sender.");
+        //    return false;
+        //    }
 
-            return -1;
+        this.progressListener.ReportProgress(0, totalRecCount, "Creating intermediate mail documents...");
+
+        int currentBatchIdx = startIndex;
+
+        while (currentBatchIdx < totalRecCount) // && !progressForm.StopRequested)
+            {
+            bool result = MergeModifySaveRange(currentBatchIdx, batchLen, settings);
+            if (!result)
+                return false;
+
+            currentBatchIdx += batchLen;
+            resetWord();
+            mainDoc = word?.Documents.Open(settings.WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
             }
 
-        private bool MergeModifySaveAllAsync(int startIndex, JsonSettings settings)
+        return true;
+        }
+
+    private bool MergeModifySaveRange(int startIndex, int rangeLen, JsonSettings settings)
+        {
+        if (word is null)
+            return false;
+        Word.Document mergedDoc;
+
+        OpenDataSource(word, settings.DataSourceFileName, startIndex, rangeLen);
+
+        int batchRecCount = word.ActiveDocument.MailMerge.DataSource.RecordCount;
+
+        string lastFieldName =
+            word.ActiveDocument.MailMerge.DataSource.DataFields[
+                word.ActiveDocument.MailMerge.DataSource.DataFields.Count].Name;
+
+        lastFieldName = lastFieldName.Replace("vestiging", "");
+        int numberOfVestigingen = GetNumbers(lastFieldName, 0);
+
+        for (int i = 1; i <= batchRecCount; i++)
             {
-            resetWord();
-            this.mainDoc = word?.Documents.Open(settings.WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
-            this.totalRecCount = GetRecordCount(settings.DataSourceFileName);
-
-            if (this.totalRecCount == -1)
-                {
-                string message = "No records found. Make sure the mail merge document is the active document or reset the mail merge source.";
-                MessageBox.Show(message);
-                return true;
-                }
-
-            //if (string.IsNullOrEmpty(progressForm.SenderAccount))
+            //System.Windows.Forms.Application.DoEvents();
+            //if (progressForm.StopRequested)
             //    {
-            //    System.Windows.Forms.MessageBox.Show("Select a sender.");
+            //    progressForm.SetInfo("Stopped by user");
             //    return false;
             //    }
 
-            this.progressListener.ReportProgress(0, totalRecCount, "Creating intermediate mail documents...");
+            var merge = word.ActiveDocument.MailMerge;
 
-            int currentBatchIdx = startIndex;
+            merge.DataSource.FirstRecord = i;
+            merge.DataSource.LastRecord = i;
+            merge.DataSource.ActiveRecord = (Word.WdMailMergeActiveRecord)i;
+            merge.Destination = Word.WdMailMergeDestination.wdSendToNewDocument;
 
-            while (currentBatchIdx < totalRecCount) // && !progressForm.StopRequested)
+            string email = merge.DataSource.DataFields["email"].Value;
+            string naam = merge.DataSource.DataFields["naam"].Value;
+            string voornaam = merge.DataSource.DataFields["voornaam"].Value;
+            string fileIdxStr = merge.DataSource.DataFields["Idx"].Value;
+
+            this.progressListener.SetProgress(int.Parse(fileIdxStr));
+
+            string[] wordDocs = new string[numberOfVestigingen];
+            string[] attachments = new string[numberOfVestigingen];
+
+            for (int idx = 1; idx <= numberOfVestigingen; idx++)
                 {
-                bool result = MergeModifySaveRange(currentBatchIdx, batchLen, settings);
-                if (!result)
-                    return false;
-
-                currentBatchIdx += batchLen;
-                resetWord();
-                mainDoc = word?.Documents.Open(settings.WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+                wordDocs[idx - 1] = merge.DataSource.DataFields[$"vestiging{idx}_wordDoc"].Value;
+                attachments[idx - 1] = merge.DataSource.DataFields[$"vestiging{idx}_bijlage"].Value;
                 }
 
-            return true;
+            merge.Execute(false);
+
+            mergedDoc = word.ActiveDocument;
+            ExpandMailDoc(mergedDoc, email, $"Start schooljaar voor {voornaam}", wordDocs, attachments);
+            mergedDoc.SaveAs2(Path.Combine(DocBuilder.MergedDocsDir, $"File{fileIdxStr}.docx"));
+            mergedDoc.Close(false);
             }
 
-        private bool MergeModifySaveRange(int startIndex, int rangeLen, JsonSettings settings)
-            {
-            if (word is null)
-                return false;
-            Word.Document mergedDoc;
-
-            OpenDataSource(word, settings.DataSourceFileName, startIndex, rangeLen);
-
-            int batchRecCount = word.ActiveDocument.MailMerge.DataSource.RecordCount;
-
-            string lastFieldName =
-                word.ActiveDocument.MailMerge.DataSource.DataFields[
-                    word.ActiveDocument.MailMerge.DataSource.DataFields.Count].Name;
-
-            lastFieldName = lastFieldName.Replace("vestiging", "");
-            int numberOfVestigingen = GetNumbers(lastFieldName, 0);
-
-            for (int i = 1; i <= batchRecCount; i++)
-                {
-                //System.Windows.Forms.Application.DoEvents();
-                //if (progressForm.StopRequested)
-                //    {
-                //    progressForm.SetInfo("Stopped by user");
-                //    return false;
-                //    }
-
-                var merge = word.ActiveDocument.MailMerge;
-
-                merge.DataSource.FirstRecord = i;
-                merge.DataSource.LastRecord = i;
-                merge.DataSource.ActiveRecord = (Word.WdMailMergeActiveRecord)i;
-                merge.Destination = Word.WdMailMergeDestination.wdSendToNewDocument;
-
-                string email = merge.DataSource.DataFields["email"].Value;
-                string naam = merge.DataSource.DataFields["naam"].Value;
-                string voornaam = merge.DataSource.DataFields["voornaam"].Value;
-                string fileIdxStr = merge.DataSource.DataFields["Idx"].Value;
-
-                this.progressListener.SetProgress(int.Parse(fileIdxStr));
-
-                string[] wordDocs = new string[numberOfVestigingen];
-                string[] attachments = new string[numberOfVestigingen];
-
-                for (int idx = 1; idx <= numberOfVestigingen; idx++)
-                    {
-                    wordDocs[idx - 1] = merge.DataSource.DataFields[$"vestiging{idx}_wordDoc"].Value;
-                    attachments[idx - 1] = merge.DataSource.DataFields[$"vestiging{idx}_bijlage"].Value;
-                    }
-
-                merge.Execute(false);
-
-                mergedDoc = word.ActiveDocument;
-                ExpandMailDoc(mergedDoc, email, $"Start schooljaar voor {voornaam}", wordDocs, attachments);
-                mergedDoc.SaveAs2(Path.Combine(this.mergedDocsDir, $"File{fileIdxStr}.docx"));
-                mergedDoc.Close(false);
-                }
-
-            return true;
-            }
-
-        private void ExpandMailDoc(Word.Document doc, string recipients, string subject, string[] wordDocs, string[] attachments)
-            {
-            foreach (string wordDoc in wordDocs)
-                {
-                if (!string.IsNullOrEmpty(wordDoc))
-                    {
-                    Word.Document insertDoc = getCachedDoc(wordDoc);
-
-                    Word.Range docRange = doc.Content;
-                    docRange.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
-                    docRange.FormattedText = insertDoc.Content;
-                    }
-                }
-            doc.Variables.Add(VAR_RECIPIENTS, recipients);
-            string strAtt = string.Join(";", attachments.Where(a => !string.IsNullOrEmpty(a)));
-            doc.Variables.Add(VAR_ATTACHMENTS, strAtt);
-            doc.Variables.Add(VAR_SUBJECT, subject);
-            }
-
-        private Word.Document getCachedDoc(string wordDoc)
-            {
-            if (word is null)
-                throw new InvalidOperationException("Word application is not initialized.");
-            Word.Document insertDoc;
-            if (this.cachedWordDocs.ContainsKey(wordDoc))
-                return this.cachedWordDocs[wordDoc];
-
-            insertDoc = word.Documents.Open(wordDoc, ReadOnly: true, Visible: false);
-            this.cachedWordDocs.Add(wordDoc, insertDoc);
-
-            return insertDoc;
-            }
-
-        private int GetNumbers(string str, int occur)
-            {
-            var matches = Regex.Matches(str, @"(\d+)");
-            return int.Parse(matches[occur].Value);
-            }
-
-        private void OpenDataSource(Word.Application word, string fileName, int startIdx, int idxCnt)
-            {
-            int maxIdx = startIdx + idxCnt;
-
-            word.ActiveDocument.MailMerge.OpenDataSource(
-                Name: fileName,
-                ConfirmConversions: false,
-                ReadOnly: false,
-                LinkToSource: true,
-                AddToRecentFiles: false,
-                Format: Word.WdOpenFormat.wdOpenFormatAuto,
-                Connection:
-                $"Provider=Microsoft.ACE.OLEDB.12.0;User ID=Admin;Data Source={fileName};Mode=Read;Extended Properties=\"HDR=YES;IMEX=1;\";",
-                SQLStatement:
-                $"SELECT * FROM `MAILMERGE$` where Idx >= {startIdx} and Idx < {maxIdx}",
-                SubType: Word.WdMergeSubType.wdMergeSubTypeAccess
-            );
-            }
-
-        private int GetRecordCount(string fileName)
-            {
-            if (word is null)
-                throw new InvalidOperationException("Word application is not initialized.");
-            word.ActiveDocument.MailMerge.OpenDataSource(
-                Name: fileName,
-                ConfirmConversions: false,
-                ReadOnly: false,
-                LinkToSource: true,
-                AddToRecentFiles: false,
-                Format: Word.WdOpenFormat.wdOpenFormatAuto,
-                Connection:
-                $"Provider=Microsoft.ACE.OLEDB.12.0;User ID=Admin;Data Source={fileName};Mode=Read;Extended Properties=\"HDR=YES;IMEX=1;\";",
-                SQLStatement: "SELECT * FROM `MAILMERGE$`",
-                SubType: Word.WdMergeSubType.wdMergeSubTypeAccess
-            );
-
-            return word.ActiveDocument.MailMerge.DataSource.RecordCount;
-            }
-
-        private bool SendAllDocs(JsonSettings settings)
-            {
-            if (word is null)
-                this.word = this.resetWord();
-
-            Outlook.Account outAccount = this.GetOutlook().Session.Accounts[settings.MailAccountIndex];
-
-            var files = Directory.GetFiles(this.mergedDocsDir);
-
-            this.progressMaxValue = files.Length;
-            this.progressListener.ReportProgress(0, this.progressMaxValue, "Sending emails...");
-
-            int i = 1;
-
-            foreach (var file in files)
-                {
-                //System.Windows.Forms.Application.DoEvents();
-
-                //if (progressForm.StopRequested)
-                //    {
-                //    progressForm.SetInfo("Stopped by user");
-                //    return false;
-                //    }
-
-                this.progressListener.SetProgress(i);
-
-                Word.Document doc = word.Documents.Open(file, ReadOnly: true, Visible: false);
-
-                string[] recipients = doc.Variables[VAR_RECIPIENTS].Value.Split(';');
-
-                string[] attachments = new string[] { };
-
-                try
-                    {
-                    attachments = doc.Variables[VAR_ATTACHMENTS].Value.Split(';');
-                    }
-                catch { }
-
-                doc.Content.Copy();
-                Thread.Sleep(1000); //sometimes the clipboard is not ready yet, so we wait a bit
-
-                Outlook.MailItem mailItem = (Outlook.MailItem)this.GetOutlook().CreateItem(Outlook.OlItemType.olMailItem);
-
-                mailItem.SendUsingAccount = outAccount;
-                if (!string.IsNullOrEmpty(settings.OnBehalfOfEmail))
-                    mailItem.SentOnBehalfOfName = settings.OnBehalfOfEmail;
-
-                if (settings.UseTestRecipient)
-                    {
-                    recipients = new string[] { settings.TestRecipient };
-                    }
-                foreach (var recipient in recipients)
-                    {
-                    if (!string.IsNullOrEmpty(recipient))
-                        mailItem.Recipients.Add(recipient);
-                    }
-
-                foreach (var att in attachments)
-                    {
-                    if (!string.IsNullOrEmpty(att))
-                        {
-                        string fileName = Path.GetFileName(att);
-                        string neWDir = @"C:\NoSharePoint\Attachments";
-                        string newPath = Path.Combine(neWDir, fileName);
-                        mailItem.Attachments.Add(newPath);
-                        }
-                    }
-
-                mailItem.Subject = "subject";
-
-                mailItem.ReplyRecipients.Add("Academie Berchem <academie.berchem.muziek.woord@stedelijkonderwijs.be>");
-
-                var inspector = mailItem.GetInspector;
-                Word.Document? mailDoc = inspector.WordEditor as Word.Document;
-
-                mailDoc?.Content.Paste();
-
-                mailItem.Display();
-                mailItem.Send();
-
-                doc.Close(false);
-
-                i++;
-                }
-
-            return true;
-            }
+        return true;
         }
 
-    internal class DummyProgressObservable : IProgressObservable
+    private void ExpandMailDoc(Word.Document doc, string recipients, string subject, string[] wordDocs, string[] attachments)
         {
-        public void ReportProgress(int value, int maxValue, string info){}
-        public void SetProgress(int value){}
+        foreach (string wordDoc in wordDocs)
+            {
+            if (!string.IsNullOrEmpty(wordDoc))
+                {
+                Word.Document insertDoc = getCachedDoc(wordDoc);
+
+                Word.Range docRange = doc.Content;
+                docRange.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                docRange.FormattedText = insertDoc.Content;
+                }
+            }
+        doc.Variables.Add(Constants.VAR_RECIPIENTS, recipients);
+        string strAtt = string.Join(";", attachments.Where(a => !string.IsNullOrEmpty(a)));
+        doc.Variables.Add(Constants.VAR_ATTACHMENTS, strAtt);
+        doc.Variables.Add(Constants.VAR_SUBJECT, subject);
         }
+
+    private Word.Document getCachedDoc(string wordDoc)
+        {
+        if (word is null)
+            throw new InvalidOperationException("Word application is not initialized.");
+        Word.Document insertDoc;
+        if (this.cachedWordDocs.ContainsKey(wordDoc))
+            return this.cachedWordDocs[wordDoc];
+
+        insertDoc = word.Documents.Open(wordDoc, ReadOnly: true, Visible: false);
+        this.cachedWordDocs.Add(wordDoc, insertDoc);
+
+        return insertDoc;
+        }
+
+    private int GetNumbers(string str, int occur)
+        {
+        var matches = Regex.Matches(str, @"(\d+)");
+        return int.Parse(matches[occur].Value);
+        }
+
+    private void OpenDataSource(Word.Application word, string fileName, int startIdx, int idxCnt)
+        {
+        int maxIdx = startIdx + idxCnt;
+
+        word.ActiveDocument.MailMerge.OpenDataSource(
+            Name: fileName,
+            ConfirmConversions: false,
+            ReadOnly: false,
+            LinkToSource: true,
+            AddToRecentFiles: false,
+            Format: Word.WdOpenFormat.wdOpenFormatAuto,
+            Connection:
+            $"Provider=Microsoft.ACE.OLEDB.12.0;User ID=Admin;Data Source={fileName};Mode=Read;Extended Properties=\"HDR=YES;IMEX=1;\";",
+            SQLStatement:
+            $"SELECT * FROM `MAILMERGE$` where Idx >= {startIdx} and Idx < {maxIdx}",
+            SubType: Word.WdMergeSubType.wdMergeSubTypeAccess
+        );
+        }
+
+    private int GetRecordCount(string fileName)
+        {
+        if (word is null)
+            throw new InvalidOperationException("Word application is not initialized.");
+        word.ActiveDocument.MailMerge.OpenDataSource(
+            Name: fileName,
+            ConfirmConversions: false,
+            ReadOnly: false,
+            LinkToSource: true,
+            AddToRecentFiles: false,
+            Format: Word.WdOpenFormat.wdOpenFormatAuto,
+            Connection:
+            $"Provider=Microsoft.ACE.OLEDB.12.0;User ID=Admin;Data Source={fileName};Mode=Read;Extended Properties=\"HDR=YES;IMEX=1;\";",
+            SQLStatement: "SELECT * FROM `MAILMERGE$`",
+            SubType: Word.WdMergeSubType.wdMergeSubTypeAccess
+        );
+
+        return word.ActiveDocument.MailMerge.DataSource.RecordCount;
+        }
+
+    private bool SendAllDocs(JsonSettings settings)
+        {
+        if (word is null)
+            this.word = this.resetWord();
+
+        Outlook.Account outAccount = this.GetOutlook().Session.Accounts[settings.MailAccountIndex];
+
+        var files = Directory.GetFiles(DocBuilder.MergedDocsDir);
+
+        this.progressMaxValue = files.Length;
+        this.progressListener.ReportProgress(0, this.progressMaxValue, "Sending emails...");
+
+        int i = 1;
+
+        foreach (var file in files)
+            {
+            //System.Windows.Forms.Application.DoEvents();
+
+            //if (progressForm.StopRequested)
+            //    {
+            //    progressForm.SetInfo("Stopped by user");
+            //    return false;
+            //    }
+
+            this.progressListener.SetProgress(i);
+
+            Word.Document doc = word.Documents.Open(file, ReadOnly: true, Visible: false);
+
+            string[] recipients = doc.Variables[Constants.VAR_RECIPIENTS].Value.Split(';');
+
+            string[] attachments = new string[] { };
+
+            try
+                {
+                attachments = doc.Variables[Constants.VAR_ATTACHMENTS].Value.Split(';');
+                }
+            catch { }
+
+            doc.Content.Copy();
+            Thread.Sleep(1000); //sometimes the clipboard is not ready yet, so we wait a bit
+
+            Outlook.MailItem mailItem = (Outlook.MailItem)this.GetOutlook().CreateItem(Outlook.OlItemType.olMailItem);
+
+            mailItem.SendUsingAccount = outAccount;
+            if (!string.IsNullOrEmpty(settings.OnBehalfOfEmail))
+                mailItem.SentOnBehalfOfName = settings.OnBehalfOfEmail;
+
+            if (settings.UseTestRecipient)
+                {
+                recipients = new string[] { settings.TestRecipient };
+                }
+            foreach (var recipient in recipients)
+                {
+                if (!string.IsNullOrEmpty(recipient))
+                    mailItem.Recipients.Add(recipient);
+                }
+
+            foreach (var att in attachments)
+                {
+                if (!string.IsNullOrEmpty(att))
+                    {
+                    string fileName = Path.GetFileName(att);
+                    string neWDir = @"C:\NoSharePoint\Attachments";
+                    string newPath = Path.Combine(neWDir, fileName);
+                    mailItem.Attachments.Add(newPath);
+                    }
+                }
+
+            mailItem.Subject = "subject";
+
+            mailItem.ReplyRecipients.Add("Academie Berchem <academie.berchem.muziek.woord@stedelijkonderwijs.be>");
+
+            var inspector = mailItem.GetInspector;
+            Word.Document? mailDoc = inspector.WordEditor as Word.Document;
+
+            mailDoc?.Content.Paste();
+
+            mailItem.Display();
+            mailItem.Send();
+
+            doc.Close(false);
+
+            i++;
+            }
+
+        return true;
+        }
+    }
+
+internal class DummyProgressObservable : IProgressObservable
+    {
+    public void ReportProgress(int value, int maxValue, string info){}
+    public void SetProgress(int value){}
     }

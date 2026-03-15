@@ -193,7 +193,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
     private void LoadJsonSettings()
         {
         string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string settingsFile = Path.Combine(localDir, MailMerge.APP_NAME, SETTINGS_FILENAME);
+        string settingsFile = Path.Combine(localDir, Constants.APP_NAME, SETTINGS_FILENAME);
         if (File.Exists(settingsFile))
             {
             string json = File.ReadAllText(settingsFile);
@@ -214,7 +214,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
     public void SaveJsonSettings()
         {
         string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string appDir = Path.Combine(localDir, MailMerge.APP_NAME);
+        string appDir = Path.Combine(localDir, Constants.APP_NAME);
         if (!Directory.Exists(appDir))
             Directory.CreateDirectory(appDir);
         string settingsFile = Path.Combine(appDir, SETTINGS_FILENAME);
