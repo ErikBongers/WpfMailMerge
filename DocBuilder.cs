@@ -43,15 +43,15 @@ internal class DocBuilder
         CreateTemplateDoc();
         }
 
-    private void CheckIncludedDocs(Word.Document templateDoc)
+    private List<int> GetMarkerIndices(Word.Document templateDoc, string startMarker, string endMarker)
         {
-        List<int> attachememntIndices = [];
+        List<int> indices = [];
         foreach (Word.Range storyRange in templateDoc.StoryRanges)
             {
             var searchRange = storyRange.Duplicate;
             while (true)
                 {
-                var section = FindSection(searchRange, "%%INSERT ", "%%");
+                var section = FindSection(searchRange, startMarker, endMarker);
                 if (section == null)
                     break;
                 string? fieldMarker = section.InbetweenRange.Text;
@@ -60,27 +60,38 @@ internal class DocBuilder
                 string indexStr = fieldMarker.Replace("{{", "").Replace("}}", "").Trim();
                 if (int.TryParse(indexStr, out int index))
                     {
-                    attachememntIndices.Add(index);
+                    indices.Add(index);
                     }
                 else
-                    throw new Exception($"Invalid attachment field marker: {fieldMarker}");
+                    throw new Exception($"Invalid {startMarker} field marker: {fieldMarker}");
                 searchRange.Start = section.EndMarker.End;
                 }
             }
-        List<string> attachementFilePaths = [.. excelData.Rows.SelectMany(row =>
+        return indices;
+        }
+
+    private List<string> GetUniqueColumnValues(List<int> indices)
+        {
+        return [.. excelData.Rows.SelectMany(row =>
             {
-                List<string> filePaths = [];
-                foreach (int index in attachememntIndices)
+                List<string> values = [];
+                foreach (int index in indices)
                     {
                     if (index < row.Count)
                         {
-                        string filePath = row[index];
-                        if (!string.IsNullOrWhiteSpace(filePath))
-                            filePaths.Add(filePath);
+                        string value = row[index];
+                        if (!string.IsNullOrWhiteSpace(value))
+                            values.Add(value);
                         }
                     }
-                return filePaths;
+                return values;
             }).Distinct()];
+        }
+
+    private void CheckIncludedDocs(Word.Document templateDoc)
+        {
+        List<int> attachememntIndices = GetMarkerIndices(templateDoc, "%%INSERT ", "%%");
+        List<string> attachementFilePaths = GetUniqueColumnValues(attachememntIndices);
         foreach (string filePath in attachementFilePaths)
             {
             if (!File.Exists(filePath))
