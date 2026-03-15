@@ -209,19 +209,6 @@ private void CreateTemplateDoc()
                 }
             foreach (Word.Range storyRange in doc.StoryRanges)
                 {
-                //for (int i = 1; i < excelData.Headers.Count; i++)
-                //    {
-                //    while (true)
-                //        { 
-                //        Word.Range searchRange = storyRange.Duplicate;
-                //        Word.Find find = searchRange.Find;
-                //        find.Text = $"{{{{{i}}}}}";
-                //        find.Execute();
-                //        if (!find.Found)
-                //            break;
-                //        searchRange.Text = excelData.GetRow(rowIndex)[i];
-                //        }
-                //    }
                 while (true)
                     {
                     var section = FindSection(storyRange, "%%COLLAPSE%%", "%%END COLLAPSE%%");
