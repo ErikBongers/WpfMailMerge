@@ -88,15 +88,47 @@ internal class DocBuilder
                 {
                 for (int i = 1; i < excelData.Headers.Count; i++)
                     {
-                    Word.Range range = storyRange.Duplicate;
-                    Word.Find find = range.Find;
-                    find.Text = $"{{{{{i}}}}}";
-                    find.Execute();
-                    if(find.Found) //todo: repeat find until no more matches
-                        range.Text = excelData.GetRow(rowIndex)[i];
+                    while (true)
+                        {
+                        Word.Range searchRange = storyRange.Duplicate;
+                        Word.Find find = searchRange.Find;
+                        find.Text = $"{{{{{i}}}}}";
+                        find.Execute();
+                        if (!find.Found)
+                            break;
+                        searchRange.Text = excelData.GetRow(rowIndex)[i];
+                        }
                     }
+                while (true) 
+                    {
+                    Word.Range collapseRangeStart = storyRange.Duplicate;
+                    Word.Find findStart = collapseRangeStart.Find;
+                    findStart.Text = $"%%COLLAPSE%%";
+                    findStart.Execute();
+                    if (!findStart.Found)
+                        break;
+                    Word.Range collapseRangeEnd = storyRange.Duplicate;
+                    Word.Find findEnd = collapseRangeEnd.Find;
+                    findEnd.Text = $"%%END COLLAPSE%%";
+                    findEnd.Execute();
+                    if (!findEnd.Found)
+                        break;//todo: error: collapse end marker not found
+                    Word.Range inbetweenRange = doc.Range(collapseRangeStart.End, collapseRangeEnd.Start);
+                    var text = inbetweenRange.Text;
+                    text = text.Replace("\a", "");
+                    if (string.IsNullOrWhiteSpace(text))
+                        {
+                        Word.Range rangeToDelete = doc.Range(collapseRangeStart.Start, collapseRangeEnd.End);
+                        rangeToDelete.Delete();
+                        }
+                    else
+                        {
+                        collapseRangeStart.Delete();
+                        collapseRangeEnd.Delete();
+                        }
+                    }                
                 }
-            doc.Save();
+                doc.Save();
             }
         finally
             {
