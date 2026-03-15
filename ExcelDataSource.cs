@@ -160,11 +160,26 @@ internal class ExcelDataSource
 
 public class ExcelData
     {
-    private object[,] data;
-    public object[,] Data { get => data; private set => data = value; }
+    private List<string> headers = new List<string>();
+    private List<List<string>> rows = new List<List<string>>();
 
     public ExcelData(object[,] data)
         {
-        this.data = data;
+        for (int col = 1; col <= data.GetLength(1); col++)
+            {
+            headers.Add(data[1, col]?.ToString() ?? string.Empty);
+            }
+        for (int row = 2; row <= data.GetLength(0); row++)
+            {
+            List<string> rowData = new List<string>();
+            for (int col = 1; col <= data.GetLength(1); col++)
+                {
+                rowData.Add(data[row, col]?.ToString() ?? string.Empty);
+                }
+            rows.Add(rowData);
+            }
         }
+
+    public List<string> Headers => headers;
+    public List<string> GetRow(int index) => rows[index];
     }

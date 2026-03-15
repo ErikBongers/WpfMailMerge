@@ -115,6 +115,8 @@ namespace WpfMailMerge
             if (settings.NamedRange == null)
                 return;
             var data = excelDataSource.GetData(settings.NamedRange);
+            var headers = data.Headers;
+            var firstRow = data.GetRow(0);
             }
 
         private bool PerformChecks(JsonSettings settings)
