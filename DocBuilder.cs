@@ -16,20 +16,38 @@ internal class FieldDef
 internal class DocBuilder
     {
     private readonly string templateDocPath;
-    private readonly FieldDef[] fieldDefs;
     private readonly Word.Application word;
+    private readonly ExcelData excelData;
 
-    public DocBuilder(string templateDocPath, FieldDef[] fieldDefs)
+    public DocBuilder(string templateDocPath, ExcelData excelData)
         {
         this.templateDocPath = templateDocPath;
-        this.fieldDefs = fieldDefs;
         this.word = new Word.Application();
-
+        this.excelData = excelData;
         }
 
-    public void BuildDoc(string outputDocPath, object[] row)
+    public void BuildDoc(string outputDocPath, int rowIndex)
         {
-
+        Word.Document doc = this.word.Documents.Open(this.templateDocPath);
+        try
+            {
+            foreach (Word.Range storyRange in doc.StoryRanges)
+                {
+                for (int i = 1; i < excelData.Headers.Count; i++)
+                    {
+                    string fieldName = excelData.Headers[i];
+                    Word.Find find = storyRange.Find;
+                    find.Text = $"{{{{{fieldName}}}}}";
+                    find.Replacement.Text = $"{{{{{i}}}}}";
+                    find.Execute(Replace: Word.WdReplace.wdReplaceAll);
+                    }
+                }
+            doc.SaveAs2(@"C:\Users\erikb\Desktop\sdf.docx");
+            }
+        finally
+            {
+            doc.Close();
+            }
         }
 
     ~DocBuilder()

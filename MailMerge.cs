@@ -115,8 +115,8 @@ namespace WpfMailMerge
             if (settings.NamedRange == null)
                 return;
             var data = excelDataSource.GetData(settings.NamedRange);
-            var headers = data.Headers;
-            var firstRow = data.GetRow(0);
+            var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
+                docBuilder.BuildDoc(@"C:\NoSharePoint\Output\FinalDoc.docx", 1);
             }
 
         private bool PerformChecks(JsonSettings settings)
