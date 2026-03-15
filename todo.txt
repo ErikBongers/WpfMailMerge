@@ -1,7 +1,5 @@
-Replace
---------
-Doc has field names -> convert to indexes in template.
-Excel: get header defs.
+* Make sure empty insert markers with multiple spaces are also deleted:
+  > %%INSERT .....%%
 
 
 

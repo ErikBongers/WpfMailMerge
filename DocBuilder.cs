@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Office.Interop.Word;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection.Metadata;
 using Word = Microsoft.Office.Interop.Word;
@@ -11,6 +12,13 @@ internal class FieldDef
     public required int Index { get; set; }
     }
 
+internal class FieldRangeDef
+    {
+    public required int Start { get; set; }
+    public required int End { get; set; }
+    public required int Index { get; set; }
+    }
+
 internal class DocBuilder
     {
     private readonly string sourceDocPath;
@@ -19,6 +27,7 @@ internal class DocBuilder
     private string mailMergeTempDir;
     private string mergedDocsDir;
     private string templateDocPath;
+    private List<FieldRangeDef> fieldRanges = [];
 
     public DocBuilder(string templateDocPath, ExcelData excelData)
         {
@@ -53,9 +62,13 @@ internal class DocBuilder
         BuildOneDoc(this.word.Documents.Open(this.templateDocPath), rowIndex);
         }
 
-    private void CreateTemplateDoc()
+private void CreateTemplateDoc()
         {
         Word.Document doc = this.word.Documents.Open(this.sourceDocPath);
+        doc.SaveAs2(FileName: this.templateDocPath, AddToRecentFiles: false);
+        doc.Close();
+        doc = this.word.Documents.Open(this.templateDocPath);
+
         try
             {
             foreach (Word.Range storyRange in doc.StoryRanges)
@@ -68,8 +81,32 @@ internal class DocBuilder
                     find.Replacement.Text = $"{{{{{i}}}}}";
                     find.Execute(Replace: Word.WdReplace.wdReplaceAll);
                     }
+                //find INSERT markers
                 }
-            doc.SaveAs2(FileName: this.templateDocPath, AddToRecentFiles: false);
+            //collect the ranges
+            foreach (Word.Range storyRange in doc.StoryRanges)
+                {
+                for (int i = 1; i < excelData.Headers.Count; i++)
+                    {
+                    Word.Range searchRange = storyRange.Duplicate;
+                    while (true)
+                        {
+                        Word.Find find = searchRange.Find;
+                        find.ClearFormatting();
+                        find.Forward = true;
+                        find.Wrap = WdFindWrap.wdFindStop;
+                        find.Text = $"{{{{{i}}}}}";
+                        var found = find.Execute(Forward: true, Wrap: WdFindWrap.wdFindStop);
+                        if (!found)
+                            break;
+                        var fieldRange = new FieldRangeDef { Start = searchRange.Start, End = searchRange.End, Index = i };
+                        fieldRanges.Add(fieldRange);
+                        searchRange.Collapse(WdCollapseDirection.wdCollapseEnd);
+                        }
+                    }
+                }
+            fieldRanges = fieldRanges.OrderByDescending(fr => fr.Start).ToList();
+            doc.Save();
             }
         finally
             {
@@ -84,51 +121,59 @@ internal class DocBuilder
         Word.Document doc = this.word.Documents.Open(FileName: outputDocPath, Visible: false);
         try
             {
+            foreach (var fieldRange in fieldRanges)
+                {
+                Word.Range range = doc.Range(fieldRange.Start, fieldRange.End);
+                range.Text = excelData.GetRow(rowIndex)[fieldRange.Index];
+                }
             foreach (Word.Range storyRange in doc.StoryRanges)
                 {
-                for (int i = 1; i < excelData.Headers.Count; i++)
-                    {
-                    while (true)
-                        {
-                        Word.Range searchRange = storyRange.Duplicate;
-                        Word.Find find = searchRange.Find;
-                        find.Text = $"{{{{{i}}}}}";
-                        find.Execute();
-                        if (!find.Found)
-                            break;
-                        searchRange.Text = excelData.GetRow(rowIndex)[i];
-                        }
-                    }
+                //for (int i = 1; i < excelData.Headers.Count; i++)
+                //    {
+                //    while (true)
+                //        { 
+                //        Word.Range searchRange = storyRange.Duplicate;
+                //        Word.Find find = searchRange.Find;
+                //        find.Text = $"{{{{{i}}}}}";
+                //        find.Execute();
+                //        if (!find.Found)
+                //            break;
+                //        searchRange.Text = excelData.GetRow(rowIndex)[i];
+                //        }
+                //    }
                 while (true) 
                     {
-                    Word.Range collapseRangeStart = storyRange.Duplicate;
-                    Word.Find findStart = collapseRangeStart.Find;
-                    findStart.Text = $"%%COLLAPSE%%";
-                    findStart.Execute();
-                    if (!findStart.Found)
+                    var section = FindSection(storyRange, "%%COLLAPSE%%", "%%END COLLAPSE%%");
+                    if (section == null)
                         break;
-                    Word.Range collapseRangeEnd = storyRange.Duplicate;
-                    Word.Find findEnd = collapseRangeEnd.Find;
-                    findEnd.Text = $"%%END COLLAPSE%%";
-                    findEnd.Execute();
-                    if (!findEnd.Found)
-                        break;//todo: error: collapse end marker not found
-                    Word.Range inbetweenRange = doc.Range(collapseRangeStart.End, collapseRangeEnd.Start);
-                    var text = inbetweenRange.Text;
+                    var text = section.InbetweenRange.Text;
                     text = text.Replace("\a", "");
                     if (string.IsNullOrWhiteSpace(text))
                         {
-                        Word.Range rangeToDelete = doc.Range(collapseRangeStart.Start, collapseRangeEnd.End);
-                        rangeToDelete.Delete();
+                        section.OuterRange.Delete();
                         }
                     else
                         {
-                        collapseRangeStart.Delete();
-                        collapseRangeEnd.Delete();
+                        section.StartMarker.Delete();
+                        section.EndMarker.Delete();
                         }
-                    }                
+                    }
+                //find INSERT markers
+                while (true)
+                    {
+                    Word.Range searchRange = storyRange.Duplicate;
+                    Word.Find find = searchRange.Find;
+                    find.ClearFormatting();
+                    find.Forward = true;
+                    find.Wrap = WdFindWrap.wdFindStop;
+                    find.Text = $"%%INSERT %%";
+                    var found = find.Execute(Forward: true, Wrap: WdFindWrap.wdFindStop);
+                    if (!found)
+                        break;
+                    searchRange.Delete();
+                    }
                 }
-                doc.Save();
+            doc.Save();
             }
         finally
             {
@@ -136,8 +181,45 @@ internal class DocBuilder
             }
         }
 
+    private Section? FindSection(Word.Range searchRange, string startMarker, string endMarker)
+        {
+        Word.Range collapseRangeStart = searchRange.Duplicate;
+        Word.Find findStart = collapseRangeStart.Find;
+        findStart.Text = startMarker;
+        findStart.Execute();
+        if (!findStart.Found)
+            return null;
+        Word.Range collapseRangeEnd = searchRange.Duplicate;
+        Word.Find findEnd = collapseRangeEnd.Find;
+        findEnd.Text = endMarker;
+        findEnd.Execute();
+        if (!findEnd.Found)
+            return null; //todo: error: collapse end marker not found
+        return new Section { StartMarker = collapseRangeStart.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
+        }
+
     ~DocBuilder()
         {
         this.word.Quit();
         }
+    }
+
+public class Section
+    {
+    public required Word.Range StartMarker { get; set; }
+    public required Word.Range EndMarker { get; set; }
+    public Word.Range InbetweenRange { 
+        get
+            {
+            return this.StartMarker.Document.Range(this.StartMarker.End, this.EndMarker.Start);
+            }
+        }
+    public Word.Range OuterRange
+        {
+        get
+            {
+            return this.StartMarker.Document.Range(this.StartMarker.Start, this.EndMarker.End);
+            }
+        }
+
     }
