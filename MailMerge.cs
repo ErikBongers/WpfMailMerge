@@ -5,7 +5,6 @@ using System.Windows;
 using Microsoft.VisualBasic;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
-using Excel = Microsoft.Office.Interop.Excel;
 
 namespace WpfMailMerge
     {
@@ -110,38 +109,10 @@ namespace WpfMailMerge
             //this.SaveJsonSettings();
 
             //MergeModifySaveAllAsync(0);
-            SendAllDocs(settings);
-            }
-
-        private void TestExcel(JsonSettings settings)
-            {
-            var excel = new Excel.Application();
-            try
-                {
-                var workBook = excel.Workbooks.Open(settings.DataSourceFileName);
-                foreach (Excel.Worksheet workSheet in workBook.Worksheets)
-                    {
-                    foreach (Excel.ListObject excelTable in workSheet.ListObjects)
-                        {
-                        Console.WriteLine($"Table Name: {excelTable.Name}");
-                        Console.WriteLine($"Table Range: {excelTable.Range.Address}");
-
-                        // Example: Access data, e.g., print header
-                        // excelTable.HeaderRowRange
-                        }
-                    }
-
-                //read all cells
-                // Retrieve values into a 2D array
-                Excel.Worksheet workSheet1 = workBook.Worksheets[1];
-                Excel.Range usedRange = workSheet1.UsedRange;
-                object[,] data = (object[,])usedRange.Value2;
-                Debug.WriteLine(data[1, 1]);
-                }
-            finally
-                {
-                excel.Quit();
-                }
+            //SendAllDocs(settings);
+            //DocBuilder docBuilder = new DocBuilder(settings.WordTemplateFileName);
+            ExcelDataSource excelDataSource = new ExcelDataSource(settings.DataSourceFileName);
+            excelDataSource.TestExcel();
             }
 
         private bool PerformChecks(JsonSettings settings)

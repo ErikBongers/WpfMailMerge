@@ -198,7 +198,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
     public void Start()
         {
         this.MailAccountIndex = 2;
-        //this.mailMerge.Start(ScrapeSettings());
+        this.mailMerge.Start(ScrapeSettings());
         }
 
     public void ReportProgress(int value, int maxValue, string info)
