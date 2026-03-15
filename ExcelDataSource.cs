@@ -28,6 +28,7 @@ internal class ExcelDataSource
     {
     private readonly string dataSourceFileName;
     private Excel.Application? excel;
+    private List<RangeDef>? ranges;
 
     public ExcelDataSource(string dataSourceFileName)
         {
@@ -37,6 +38,11 @@ internal class ExcelDataSource
     
     public List<RangeDef> GetRanges()
         {
+        if(this.ranges != null)
+            {
+            return this.ranges;
+            }
+
         var excel = GetExcel();
         try
             {
@@ -50,6 +56,7 @@ internal class ExcelDataSource
                     ranges.Add(new RangeDef { Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
                     }
                 }
+            this.ranges = ranges;
             return ranges;
             }
         finally
@@ -92,6 +99,37 @@ internal class ExcelDataSource
             }
         }
 
+    public ExcelData GetData(string rangeName)
+        {
+        RangeDef? rangeDef = this.GetRanges().FirstOrDefault(r => r.DisplayName == rangeName);
+        if (rangeDef == null)
+            {
+            throw new ArgumentException($"Range {rangeName} not found in Excel file.");
+            }
+        var excel = GetExcel();
+        try
+            {
+            var workBook = excel.Workbooks.Open(this.dataSourceFileName);
+            Excel.Range range;
+            if (rangeDef.RangeType == RangeType.Sheet)
+                {
+                Excel.Worksheet workSheet = workBook.Worksheets[rangeDef.Name];
+                range = workSheet.UsedRange;
+                }
+            else
+                {
+                Excel.Worksheet workSheet = workBook.Worksheets[rangeDef.Name];
+                range = workSheet.ListObjects[rangeDef.Name].Range;
+                }
+            object[,] data = (object[,])range.Value2;
+            return new ExcelData(data);
+            }
+        finally
+            {
+            this.CloseExcel();
+            }
+        }
+
     private Excel.Application GetExcel()
         {
         if (this.excel == null)
@@ -120,3 +158,13 @@ internal class ExcelDataSource
     }
 
 
+public class ExcelData
+    {
+    private object[,] data;
+    public object[,] Data { get => data; private set => data = value; }
+
+    public ExcelData(object[,] data)
+        {
+        this.data = data;
+        }
+    }

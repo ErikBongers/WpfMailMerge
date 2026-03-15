@@ -112,7 +112,9 @@ namespace WpfMailMerge
             //SendAllDocs(settings);
             //DocBuilder docBuilder = new DocBuilder(settings.WordTemplateFileName);
             ExcelDataSource excelDataSource = new ExcelDataSource(settings.DataSourceFileName);
-            excelDataSource.TestExcel();
+            if (settings.NamedRange == null)
+                return;
+            var data = excelDataSource.GetData(settings.NamedRange);
             }
 
         private bool PerformChecks(JsonSettings settings)
