@@ -28,6 +28,7 @@ internal class DocBuilder
     private string mergedDocsDir;
     private string templateDocPath;
     private List<FieldRangeDef> fieldRanges = [];
+    private Dictionary<string, Word.Document> attachmentDocs = [];
 
     public DocBuilder(string templateDocPath, ExcelData excelData)
         {
@@ -40,6 +41,52 @@ internal class DocBuilder
             Directory.CreateDirectory(this.mergedDocsDir);
         this.templateDocPath = Path.Combine(mailMergeTempDir, "template.docx");
         CreateTemplateDoc();
+        }
+
+    private void CheckIncludedDocs(Word.Document templateDoc)
+        {
+        List<int> attachememntIndices = [];
+        foreach (Word.Range storyRange in templateDoc.StoryRanges)
+            {
+            var searchRange = storyRange.Duplicate;
+            while (true)
+                {
+                var section = FindSection(searchRange, "%%INSERT ", "%%");
+                if (section == null)
+                    break;
+                string? fieldMarker = section.InbetweenRange.Text;
+                if (fieldMarker is null)
+                    continue;
+                string indexStr = fieldMarker.Replace("{{", "").Replace("}}", "").Trim();
+                if (int.TryParse(indexStr, out int index))
+                    {
+                    attachememntIndices.Add(index);
+                    }
+                else
+                    throw new Exception($"Invalid attachment field marker: {fieldMarker}");
+                searchRange.Start = section.EndMarker.End;
+                }
+            }
+        List<string> attachementFilePaths = [.. excelData.Rows.SelectMany(row =>
+            {
+                List<string> filePaths = [];
+                foreach (int index in attachememntIndices)
+                    {
+                    if (index < row.Count)
+                        {
+                        string filePath = row[index];
+                        if (!string.IsNullOrWhiteSpace(filePath))
+                            filePaths.Add(filePath);
+                        }
+                    }
+                return filePaths;
+            }).Distinct()];
+        foreach (string filePath in attachementFilePaths)
+            {
+            if (!File.Exists(filePath))
+                throw new Exception($"Attachment file not found: {filePath}");
+            attachmentDocs[filePath] = this.word.Documents.Open(filePath, Visible: false);
+            }
         }
 
     public static string MergedDocsDir => Path.Combine(Path.GetTempPath(), Constants.APP_NAME, "Merged");
@@ -106,6 +153,7 @@ private void CreateTemplateDoc()
                     }
                 }
             fieldRanges = fieldRanges.OrderByDescending(fr => fr.Start).ToList();
+            CheckIncludedDocs(doc);
             doc.Save();
             }
         finally
@@ -141,7 +189,7 @@ private void CreateTemplateDoc()
                 //        searchRange.Text = excelData.GetRow(rowIndex)[i];
                 //        }
                 //    }
-                while (true) 
+                while (true)
                     {
                     var section = FindSection(storyRange, "%%COLLAPSE%%", "%%END COLLAPSE%%");
                     if (section == null)
@@ -171,7 +219,10 @@ private void CreateTemplateDoc()
                         }
                     else
                         {
-                        section.OuterRange.Text = "TODO: " + fileName;
+                        Word.Document? attachmentDoc = null;
+                        if (!attachmentDocs.TryGetValue(fileName, out attachmentDoc))
+                            continue;
+                        section.OuterRange.FormattedText = attachmentDoc.Content.FormattedText;
                         }
                     }
                 }

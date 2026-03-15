@@ -162,6 +162,7 @@ public class ExcelData
     {
     private List<string> headers = new List<string>();
     private List<List<string>> rows = new List<List<string>>();
+    public List<List<string>> Rows => rows;
 
     public ExcelData(object[,] data)
         {
