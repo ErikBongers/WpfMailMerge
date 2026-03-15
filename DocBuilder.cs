@@ -28,7 +28,7 @@ internal class DocBuilder
     private string mergedDocsDir;
     private string templateDocPath;
     private List<FieldRangeDef> fieldRanges = [];
-    private Dictionary<string, Word.Document> attachmentDocs = [];
+    private Dictionary<string, Word.Document> insertDocs = [];
 
     public DocBuilder(string templateDocPath, ExcelData excelData)
         {
@@ -104,7 +104,7 @@ internal class DocBuilder
             {
             if (!File.Exists(filePath))
                 throw new Exception($"File to include not found: {filePath}");
-            attachmentDocs[filePath] = this.word.Documents.Open(filePath, Visible: false);
+            insertDocs[filePath] = this.word.Documents.Open(filePath, Visible: false);
             }
         }
 
@@ -252,10 +252,10 @@ private void CreateTemplateDoc()
                         }
                     else
                         {
-                        Word.Document? attachmentDoc = null;
-                        if (!attachmentDocs.TryGetValue(fileName, out attachmentDoc))
+                        Word.Document? insertDoc = null;
+                        if (!insertDocs.TryGetValue(fileName, out insertDoc))
                             continue;
-                        section.OuterRange.FormattedText = attachmentDoc.Content.FormattedText;
+                        section.OuterRange.FormattedText = insertDoc.Content.FormattedText;
                         }
                     }
                 }
