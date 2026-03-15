@@ -30,6 +30,7 @@ internal class DocBuilder
         if (!Directory.Exists(this.mergedDocsDir))
             Directory.CreateDirectory(this.mergedDocsDir);
         this.templateDocPath = Path.Combine(mailMergeTempDir, "template.docx");
+        CreateTemplateDoc();
         }
 
     public static string MergedDocsDir => Path.Combine(Path.GetTempPath(), Constants.APP_NAME, "Merged");
@@ -49,7 +50,7 @@ internal class DocBuilder
 
     public void BuildDoc(int rowIndex)
         {
-        CreateTemplateDoc();
+        BuildOneDoc(this.word.Documents.Open(this.templateDocPath), rowIndex);
         }
 
     private void CreateTemplateDoc()
@@ -76,20 +77,23 @@ internal class DocBuilder
             }
         }
 
-    private void BuildOneDoc(Word.Document templateDoc, string outputDocPath, int rowIndex)
+    private void BuildOneDoc(Word.Document templateDoc, int rowIndex)
         {
+        string outputDocPath = Path.Combine(this.mergedDocsDir, $"{Constants.MERGED_FILE_PREFIX}{rowIndex}.docx");
         templateDoc.SaveAs2(FileName: outputDocPath, AddToRecentFiles: false); //todo: use FormattedText to copy content instead of saving template as new doc
-        Word.Document doc = this.word.Documents.Open(outputDocPath);
+        Word.Document doc = this.word.Documents.Open(FileName: outputDocPath, Visible: false);
         try
             {
             foreach (Word.Range storyRange in doc.StoryRanges)
                 {
                 for (int i = 1; i < excelData.Headers.Count; i++)
                     {
-                    Word.Find find = storyRange.Find;
+                    Word.Range range = storyRange.Duplicate;
+                    Word.Find find = range.Find;
                     find.Text = $"{{{{{i}}}}}";
-                    find.Replacement.Text = excelData.GetRow(rowIndex)[i];
-                    find.Execute(Replace: Word.WdReplace.wdReplaceAll);
+                    find.Execute();
+                    if(find.Found) //todo: repeat find until no more matches
+                        range.Text = excelData.GetRow(rowIndex)[i];
                     }
                 }
             doc.Save();

@@ -105,6 +105,10 @@ internal class MailMerge
         var data = excelDataSource.GetData(settings.NamedRange);
         var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
         docBuilder.BuildDoc(1);
+        docBuilder.BuildDoc(2);
+        docBuilder.BuildDoc(3);
+        docBuilder.BuildDoc(4);
+        docBuilder.BuildDoc(5);
         }
 
     private bool PerformChecks(JsonSettings settings)
