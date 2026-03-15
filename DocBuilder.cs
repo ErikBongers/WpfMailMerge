@@ -43,7 +43,7 @@ internal class DocBuilder
         CreateTemplateDoc();
         }
 
-    private List<int> GetMarkerIndices(Word.Document templateDoc, string startMarker, string endMarker)
+    private List<int> GetMarkerIndices(Word.Document templateDoc, string startMarker, string endMarker, bool remove)
         {
         List<int> indices = [];
         foreach (Word.Range storyRange in templateDoc.StoryRanges)
@@ -64,7 +64,15 @@ internal class DocBuilder
                     }
                 else
                     throw new Exception($"Invalid {startMarker} field marker: {fieldMarker}");
-                searchRange.Start = section.EndMarker.End;
+                if (remove)
+                    {
+                    section.OuterRange.Delete();
+                    searchRange = storyRange.Duplicate;
+                    }
+                else
+                    {
+                    searchRange.Start = section.EndMarker.End;
+                    }
                 }
             }
         return indices;
@@ -90,13 +98,24 @@ internal class DocBuilder
 
     private void CheckIncludedDocs(Word.Document templateDoc)
         {
-        List<int> attachememntIndices = GetMarkerIndices(templateDoc, "%%INSERT ", "%%");
+        List<int> includedIndices = GetMarkerIndices(templateDoc, "%%INSERT ", "%%", remove: false);
+        List<string> includedFilePaths = GetUniqueColumnValues(includedIndices);
+        foreach (string filePath in includedFilePaths)
+            {
+            if (!File.Exists(filePath))
+                throw new Exception($"File to include not found: {filePath}");
+            attachmentDocs[filePath] = this.word.Documents.Open(filePath, Visible: false);
+            }
+        }
+
+    private void CheckAndRemoveAttachmentMarkers(Word.Document templateDoc)
+        {
+        List<int> attachememntIndices = GetMarkerIndices(templateDoc, "%%ATTACH ", "%%", remove: true);
         List<string> attachementFilePaths = GetUniqueColumnValues(attachememntIndices);
         foreach (string filePath in attachementFilePaths)
             {
             if (!File.Exists(filePath))
-                throw new Exception($"Attachment file not found: {filePath}");
-            attachmentDocs[filePath] = this.word.Documents.Open(filePath, Visible: false);
+                throw new Exception($"File to attach not found: {filePath}");
             }
         }
 
@@ -141,7 +160,11 @@ private void CreateTemplateDoc()
                     }
                 //find INSERT markers
                 }
-            //collect the ranges
+            
+            CheckIncludedDocs(doc);
+            CheckAndRemoveAttachmentMarkers(doc);
+
+            //collect the ranges AFTER all modifications. This ensures that the ranges are correct.
             foreach (Word.Range storyRange in doc.StoryRanges)
                 {
                 for (int i = 1; i < excelData.Headers.Count; i++)
@@ -164,7 +187,6 @@ private void CreateTemplateDoc()
                     }
                 }
             fieldRanges = fieldRanges.OrderByDescending(fr => fr.Start).ToList();
-            CheckIncludedDocs(doc);
             doc.Save();
             }
         finally
