@@ -28,6 +28,17 @@
                     <TextBox x:Name="txtDataSource" VerticalAlignment="Center"
                      Text="{Binding Path=DataSourceFileName}"/>
                 </DockPanel>
+                <DockPanel LastChildFill="True">
+                    <Label x:Name="lblNamedRanges" Content="Data:" HorizontalAlignment="Left" VerticalAlignment="Top" Width="100" HorizontalContentAlignment="Right"
+                       Visibility="{Binding NamedRangesComboVisibility}"/>
+                    <ComboBox x:Name="cmbSenderAccount" VerticalAlignment="Center"
+                              ItemsSource="{Binding Path=NamedRanges.Result}"
+                              SelectedValue="{Binding Path=SelectedNamedRange, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              SelectedValuePath="DisplayName"
+                              DisplayMemberPath="DisplayName"
+                              Visibility="{Binding NamedRangesComboVisibility}"
+                              />
+                </DockPanel>
             </StackPanel>
         </GroupBox>
         <GroupBox Header="E-mail">
@@ -35,7 +46,7 @@
                 <DockPanel LastChildFill="True">
                     <Label x:Name="lblSender" Content="Afzender:" HorizontalAlignment="Left" VerticalAlignment="Top" Width="100" HorizontalContentAlignment="Right"
                        Visibility="{Binding SenderComboVisibility}"/>
-                    <ComboBox x:Name="cmbSenderAccount" VerticalAlignment="Center"
+                    <ComboBox x:Name="cmbNamedRange" VerticalAlignment="Center"
                               ItemsSource="{Binding Path=MailAccounts.Result}"
                               SelectedValue="{Binding Path=MailAccountIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               SelectedValuePath="Index"

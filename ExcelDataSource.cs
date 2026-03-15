@@ -1,12 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace WpfMailMerge;
+
+public enum RangeType
+    {
+    Sheet,
+    Table,
+    Waiting
+    }
+
+public class RangeDef
+    {
+    public required string Name { get; set; }
+    public required string Range { get; set; }
+    public required RangeType RangeType { get; set; }
+    public string DisplayName
+        {
+        get
+            {
+            return $"{this.RangeType}:{this.Name}";
+            }
+        }
+    }
 
 internal class ExcelDataSource
     {
@@ -16,6 +32,30 @@ internal class ExcelDataSource
     public ExcelDataSource(string dataSourceFileName)
         {
         this.dataSourceFileName = dataSourceFileName;
+        }
+
+    
+    public List<RangeDef> GetRanges()
+        {
+        var excel = GetExcel();
+        try
+            {
+            var workBook = excel.Workbooks.Open(this.dataSourceFileName);
+            List<RangeDef> ranges = new List<RangeDef>();
+            foreach (Excel.Worksheet workSheet in workBook.Worksheets)
+                {
+                ranges.Add(new RangeDef { Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
+                foreach (Excel.ListObject excelTable in workSheet.ListObjects)
+                    {
+                    ranges.Add(new RangeDef { Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
+                    }
+                }
+            return ranges;
+            }
+        finally
+            {
+            this.CloseExcel();
+            }
         }
 
     public void TestExcel()

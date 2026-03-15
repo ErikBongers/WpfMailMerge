@@ -8,4 +8,5 @@ public class JsonSettings
     public required string TestRecipient { get; set; }
     public int? MailAccountIndex { get; set; }
     public string? OnBehalfOfEmail { get; set; }
+    public string? NamedRange { get; set; }
     }
