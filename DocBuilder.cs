@@ -161,16 +161,18 @@ private void CreateTemplateDoc()
                 //find INSERT markers
                 while (true)
                     {
-                    Word.Range searchRange = storyRange.Duplicate;
-                    Word.Find find = searchRange.Find;
-                    find.ClearFormatting();
-                    find.Forward = true;
-                    find.Wrap = WdFindWrap.wdFindStop;
-                    find.Text = $"%%INSERT %%";
-                    var found = find.Execute(Forward: true, Wrap: WdFindWrap.wdFindStop);
-                    if (!found)
+                    var section = FindSection(storyRange, "%%INSERT ", "%%");
+                    if (section == null)
                         break;
-                    searchRange.Delete();
+                    string? fileName = section.InbetweenRange.Text;
+                    if (fileName is null || string.IsNullOrWhiteSpace(fileName))
+                        {
+                        section.OuterRange.Delete();
+                        }
+                    else
+                        {
+                        section.OuterRange.Text = "TODO: " + fileName;
+                        }
                     }
                 }
             doc.Save();
@@ -189,7 +191,8 @@ private void CreateTemplateDoc()
         findStart.Execute();
         if (!findStart.Found)
             return null;
-        Word.Range collapseRangeEnd = searchRange.Duplicate;
+        Word.Range collapseRangeEnd = collapseRangeStart.Duplicate;
+        collapseRangeEnd.Collapse(WdCollapseDirection.wdCollapseEnd);
         Word.Find findEnd = collapseRangeEnd.Find;
         findEnd.Text = endMarker;
         findEnd.Execute();
