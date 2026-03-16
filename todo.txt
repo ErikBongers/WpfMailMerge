@@ -1,3 +1,7 @@
+* The UI gets excel ranges.
+  > Keep them.
+    > where? 
+
 * Immediately send mails after generating the documents.
 
 * Checsk should NOT throw.

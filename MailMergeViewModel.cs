@@ -198,7 +198,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
                 });
                 }
         };
-        namedRanges = new NotifyTaskCompletion<List<RangeDef>>(LoadDataSourceRanges(this.DataSourceFileName), new List<RangeDef>([new RangeDef{ Name = "..", Range="", RangeType=RangeType.Waiting }]));
+        namedRanges = new NotifyTaskCompletion<List<RangeDef>>(LoadDataSourceRanges(this.DataSourceFileName, this.mailMerge), new List<RangeDef>([new RangeDef{ Name = "..", Range="", RangeType=RangeType.Waiting }]));
         namedRanges.PropertyChanged += (s, e) =>
             {
             if (e.PropertyName == nameof(NamedRanges.IsCompleted))
@@ -218,12 +218,13 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         return await Task.Run(() => MailMerge.GetSendersAsync());
         }
 
-    private static async Task<List<RangeDef>> LoadDataSourceRanges(string dataSourceFileName)
+    private static async Task<List<RangeDef>> LoadDataSourceRanges(string dataSourceFileName, MailMerge mailMerge)
         {
         return await Task.Run(() =>
             {
-            ExcelDataSource excelDataSource = new ExcelDataSource(dataSourceFileName);
-            return excelDataSource.GetRanges();
+                ExcelDataSource excelDataSource = mailMerge.SetExcelDataSource(dataSourceFileName);
+                return excelDataSource.GetRanges();
+                //return new List<RangeDef>([new RangeDef { Name = "..", Range = "", RangeType = RangeType.Waiting }, new RangeDef { Name = "sdfsd", Range = "", RangeType = RangeType.Waiting }]);
             });
         }
 

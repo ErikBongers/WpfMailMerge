@@ -1,8 +1,10 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.VisualBasic;
+using System.Diagnostics;
 using System.IO;
+using System.Runtime;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows;
-using Microsoft.VisualBasic;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
 
@@ -19,6 +21,8 @@ internal class MailMerge
     const int batchLen = 20;
     private IProgressObservable progressListener;
     private int progressMaxValue;
+    ExcelDataSource? excelDataSource;
+
 
     public MailMerge()
         {
@@ -54,8 +58,18 @@ internal class MailMerge
             {
             accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
             }
-        outlook.Quit();
+        //outlook.Quit();
+        Marshal.ReleaseComObject(outlook);
+        outlook = null;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
         return accounts;
+        }
+
+    public ExcelDataSource SetExcelDataSource(string rangeName)
+        {
+        this.excelDataSource = new ExcelDataSource(rangeName);
+        return this.excelDataSource;
         }
 
     private Word.Application resetWord()
@@ -68,7 +82,11 @@ internal class MailMerge
                 }
             cachedWordDocs.Clear();
             mainDoc?.Close(false);
-            word?.Quit();
+            //word?.Quit();
+            Marshal.ReleaseComObject(word);
+            word = null;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
             }
         word = new Word.Application();
         return word;
@@ -99,18 +117,24 @@ internal class MailMerge
         //MergeModifySaveAllAsync(0);
         //SendAllDocs(settings);
         //DocBuilder docBuilder = new DocBuilder(settings.WordTemplateFileName);
-        ExcelDataSource excelDataSource = new ExcelDataSource(settings.DataSourceFileName);
+        if (!this.PerformChecks(settings))
+            return;
         if (settings.NamedRange == null)
             return;
-        var data = excelDataSource.GetData(settings.NamedRange);
-        var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
-        docBuilder.BuildDoc(1);
-        docBuilder.BuildDoc(2);
-        docBuilder.BuildDoc(3);
-        docBuilder.BuildDoc(4);
-        docBuilder.BuildDoc(5);
-        Thread.Sleep(1000); //probably not needed.
-        SendAllDocs(settings);
+        if (this.excelDataSource is null)
+            return;
+        if (this.excelDataSource is null)
+            return;
+        var data = this.excelDataSource.GetData(settings.NamedRange);
+        this.excelDataSource.CloseExcel();
+        //var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
+        //docBuilder.BuildDoc(1);
+        //docBuilder.BuildDoc(2);
+        //docBuilder.BuildDoc(3);
+        //docBuilder.BuildDoc(4);
+        //docBuilder.BuildDoc(5);
+        //Thread.Sleep(1000); //probably not needed.
+        //SendAllDocs(settings);
         }
 
     private bool PerformChecks(JsonSettings settings)
@@ -181,7 +205,8 @@ internal class MailMerge
 
             currentBatchIdx += batchLen;
             resetWord();
-            mainDoc = word?.Documents.Open(settings.WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
+            var documents = word?.Documents;
+            mainDoc = documents?.Open(settings.WordTemplateFileName, ReadOnly: false, Visible: true); //todo: readonly? invisible?
             }
 
         return true;

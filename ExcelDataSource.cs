@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Office.Interop.Word;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace WpfMailMerge;
@@ -43,117 +45,95 @@ internal class ExcelDataSource
             return this.ranges;
             }
 
-        var excel = GetExcel();
-        try
+        OpenExcel();
+        if (this.excel == null)
             {
-            var workBook = excel.Workbooks.Open(this.dataSourceFileName);
-            List<RangeDef> ranges = new List<RangeDef>();
-            foreach (Excel.Worksheet workSheet in workBook.Worksheets)
+            throw new InvalidOperationException("Excel application is not initialized.");
+            }
+        var workbooks = excel.Workbooks;
+        var workBook = workbooks.Open(this.dataSourceFileName);
+        List<RangeDef> ranges = new List<RangeDef>();
+        foreach (Excel.Worksheet workSheet in workBook.Worksheets)
+            {
+            ranges.Add(new RangeDef { Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
+            foreach (Excel.ListObject excelTable in workSheet.ListObjects)
                 {
-                ranges.Add(new RangeDef { Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
-                foreach (Excel.ListObject excelTable in workSheet.ListObjects)
-                    {
-                    ranges.Add(new RangeDef { Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
-                    }
+                ranges.Add(new RangeDef { Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
                 }
-            this.ranges = ranges;
-            return ranges;
             }
-        finally
-            {
-            this.CloseExcel();
-            }
-        }
-
-    public void TestExcel()
-        {
-        var excel = GetExcel();
-        try
-            {
-            var workBook = excel.Workbooks.Open(this.dataSourceFileName);
-            foreach (Excel.Worksheet workSheet in workBook.Worksheets)
-                {
-                Debug.WriteLine($"Sheet Name: {workSheet.Name}");
-                Debug.WriteLine($"SheetRange: {workSheet.UsedRange.Address}");
-
-                foreach (Excel.ListObject excelTable in workSheet.ListObjects)
-                    {
-                    Debug.WriteLine($"Table Name: {excelTable.Name}");
-                    Debug.WriteLine($"Table Range: {excelTable.Range.Address}");
-
-                    // Example: Access data, e.g., print header
-                    // excelTable.HeaderRowRange
-                    }
-                }
-
-            //read all cells
-            // Retrieve values into a 2D array
-            Excel.Worksheet workSheet1 = workBook.Worksheets[1];
-            Excel.Range usedRange = workSheet1.UsedRange;
-            object[,] data = (object[,])usedRange.Value2;
-            Debug.WriteLine(data[1, 1]);
-            }
-        finally
-            {
-            this.CloseExcel();
-            }
+        this.ranges = ranges;
+        workBook.Close(false);
+        workbooks.Close();
+        Marshal.FinalReleaseComObject(workBook);
+        Marshal.FinalReleaseComObject(workbooks);
+        return ranges;
         }
 
     public ExcelData GetData(string rangeName)
         {
-        RangeDef? rangeDef = this.GetRanges().FirstOrDefault(r => r.DisplayName == rangeName);
+        if (this.ranges is null)
+            throw new ArgumentException("Ranges have not been set.");
+        var rangeDef = this.ranges.FirstOrDefault(r =>  !r.DisplayName.Equals(rangeName));
         if (rangeDef == null)
             {
-            throw new ArgumentException($"Range {rangeName} not found in Excel file.");
+            throw new ArgumentException($"Range not found in Excel file.");
             }
-        var excel = GetExcel();
-        try
+        OpenExcel();
+        if (this.excel == null)
             {
-            var workBook = excel.Workbooks.Open(this.dataSourceFileName);
-            Excel.Range range;
-            if (rangeDef.RangeType == RangeType.Sheet)
-                {
-                Excel.Worksheet workSheet = workBook.Worksheets[rangeDef.Name];
-                range = workSheet.UsedRange;
-                }
-            else
-                {
-                Excel.Worksheet workSheet = workBook.Worksheets[rangeDef.Name];
-                range = workSheet.ListObjects[rangeDef.Name].Range;
-                }
-            object[,] data = (object[,])range.Value2;
-            return new ExcelData(data);
+            throw new InvalidOperationException("Excel application is not initialized.");
             }
-        finally
+        var workbooks = excel.Workbooks;
+        var workBook = workbooks.Open(this.dataSourceFileName);
+        var workSheets = workBook.Worksheets;
+        Excel.Worksheet workSheet;
+        Excel.Range range;
+        if (rangeDef.RangeType == RangeType.Sheet)
             {
-            this.CloseExcel();
+            workSheet = workSheets[rangeDef.Name];
+            range = workSheet.UsedRange;
             }
+        else
+            {
+            workSheet = workBook.Worksheets[rangeDef.Name];
+            range = workSheet.ListObjects[rangeDef.Name].Range;
+            }
+        object[,] data = (object[,])range.Value2;
+        Marshal.FinalReleaseComObject(range);
+        Marshal.FinalReleaseComObject(workSheet);
+        Marshal.FinalReleaseComObject(workSheets);
+        workBook.Close(false);
+        workbooks.Close();
+        Marshal.FinalReleaseComObject(workBook);
+        Marshal.FinalReleaseComObject(workbooks);
+        workBook = null;
+        workbooks = null;
+        return new ExcelData(data);
         }
 
-    private Excel.Application GetExcel()
+    private void OpenExcel()
         {
         if (this.excel == null)
             {
             this.excel = new Excel.Application();
             }
-        return this.excel;
         }
 
-    private void CloseExcel()
+    public void CloseExcel()
         {
         if (this.excel != null)
             {
             this.excel.Quit();
+            Marshal.FinalReleaseComObject(this.excel);
             this.excel = null;
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
             }
         }
 
     ~ExcelDataSource()
         {
-        if (this.excel != null)
-            {
-            this.excel.Quit();
-            }
+        this.CloseExcel();
         }
     }
 
