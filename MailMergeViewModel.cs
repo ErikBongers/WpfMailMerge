@@ -179,27 +179,35 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         LoadJsonSettings();
         mailAccounts = new NotifyTaskCompletion<List<MailAccount>>(LoadMailAccounts(), new List<MailAccount>([new MailAccount { DisplayName = "Loading...", Index = -1 }]));
         mailAccounts.PropertyChanged += (s, e) =>
-            {
+        {
             if (e.PropertyName == nameof(MailAccounts.IsCompleted))
                 {
                 OnPropertyChanged(nameof(SenderComboVisibility));
-                    this.MailAccountIndex = this.savedMailAccountIndex;
-                    Task.Delay(10).ContinueWith(t =>
+                int newMailAccountIndex = -1;
+                if (mailAccounts.Result?.Count == 1)
                     {
-                        this.MailAccountIndex = this.savedMailAccountIndex;
-                    });
+                    newMailAccountIndex = mailAccounts.Result[0].Index;
+                    }
+                else if (this.savedMailAccountIndex < mailAccounts.Result?.Count)
+                    {
+                    newMailAccountIndex = this.savedMailAccountIndex;
+                    }
+                Task.Delay(10).ContinueWith(t =>
+                {
+                    this.MailAccountIndex = newMailAccountIndex;
+                });
                 }
-            };
+        };
         namedRanges = new NotifyTaskCompletion<List<RangeDef>>(LoadDataSourceRanges(this.DataSourceFileName), new List<RangeDef>([new RangeDef{ Name = "..", Range="", RangeType=RangeType.Waiting }]));
         namedRanges.PropertyChanged += (s, e) =>
             {
             if (e.PropertyName == nameof(NamedRanges.IsCompleted))
                 {
                 OnPropertyChanged(nameof(NamedRangesComboVisibility));
-                    this.SelectedNamedRange = this.savedNamedRange;
-                    Task.Delay(10).ContinueWith(t =>
+                this.SelectedNamedRange = this.savedNamedRange;
+                Task.Delay(10).ContinueWith(t =>
                     {
-                        this.SelectedNamedRange= this.savedNamedRange;
+                    this.SelectedNamedRange= this.savedNamedRange;
                     });
                 }
             };
