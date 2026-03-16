@@ -127,14 +127,14 @@ internal class MailMerge
             return;
         var data = this.excelDataSource.GetData(settings.NamedRange);
         this.excelDataSource.CloseExcel();
-        //var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
-        //docBuilder.BuildDoc(1);
-        //docBuilder.BuildDoc(2);
-        //docBuilder.BuildDoc(3);
-        //docBuilder.BuildDoc(4);
-        //docBuilder.BuildDoc(5);
-        //Thread.Sleep(1000); //probably not needed.
-        //SendAllDocs(settings);
+        var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
+        docBuilder.BuildDoc(1);
+        docBuilder.BuildDoc(2);
+        docBuilder.BuildDoc(3);
+        docBuilder.BuildDoc(4);
+        docBuilder.BuildDoc(5);
+        Thread.Sleep(1000); //probably not needed.
+        SendAllDocs(settings);
         }
 
     private bool PerformChecks(JsonSettings settings)
@@ -150,7 +150,7 @@ internal class MailMerge
             return false;
             }
         //check if merged file folder is empty
-        if (DocBuilder.IsMergeDirEmpty())
+        if (!DocBuilder.IsMergeDirEmpty())
             {
             var reply = MessageBox.Show("Merged documents directory is not empty. Clear directory?", "Mail Merge", MessageBoxButton.YesNoCancel);
             if (reply == MessageBoxResult.Cancel)

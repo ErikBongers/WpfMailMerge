@@ -73,7 +73,7 @@ internal class ExcelDataSource
         {
         if (this.ranges is null)
             throw new ArgumentException("Ranges have not been set.");
-        var rangeDef = this.ranges.FirstOrDefault(r =>  !r.DisplayName.Equals(rangeName));
+        var rangeDef = this.ranges.FirstOrDefault(r => r.DisplayName.Equals(rangeName));
         if (rangeDef == null)
             {
             throw new ArgumentException($"Range not found in Excel file.");
