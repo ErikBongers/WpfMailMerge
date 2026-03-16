@@ -1,7 +1,7 @@
-﻿using Microsoft.Office.Interop.Word;
-using System.Diagnostics;
+﻿using Microsoft.Office.Interop.Outlook;
+using Microsoft.Office.Interop.Word;
 using System.IO;
-using System.Reflection.Metadata;
+using System.Text.RegularExpressions;
 using Word = Microsoft.Office.Interop.Word;
 
 namespace WpfMailMerge;
@@ -19,6 +19,23 @@ internal class FieldRangeDef
     public required int Index { get; set; }
     }
 
+class DecoratedString
+    {
+    public required string Value { get; set; }
+    public required List<int> indices = [];
+    public string Decorate(List<string> row) //todo: use enumerable instead of list here and everywhere possible.
+        {
+        string decorated = this.Value;
+        foreach (int index in indices)
+            {
+            string value = row[index];
+            decorated = decorated.Replace($"{{{{{index}}}}}", value);
+            }
+        return decorated;
+        }
+
+    }
+
 internal class DocBuilder
     {
     private readonly string sourceDocPath;
@@ -29,6 +46,9 @@ internal class DocBuilder
     private string templateDocPath;
     private List<FieldRangeDef> fieldRanges = [];
     private Dictionary<string, Word.Document> insertDocs = [];
+    private List<int> attachmentIndices = [];
+    private DecoratedString? subject;
+    private DecoratedString? mailTo;
 
     public DocBuilder(string templateDocPath, ExcelData excelData)
         {
@@ -63,7 +83,7 @@ internal class DocBuilder
                     indices.Add(index);
                     }
                 else
-                    throw new Exception($"Invalid {startMarker} field marker: {fieldMarker}");
+                    throw new System.Exception($"Invalid {startMarker} field marker: {fieldMarker}");
                 if (remove)
                     {
                     section.OuterRange.Delete();
@@ -76,6 +96,35 @@ internal class DocBuilder
                 }
             }
         return indices;
+        }
+
+    private List<string> GetMarkerValues(Word.Document templateDoc, string startMarker, string endMarker, bool remove) //todo: merge into GetMarkerIndices.
+        {
+        List<string> values = [];
+        foreach (Word.Range storyRange in templateDoc.StoryRanges)
+            {
+            var searchRange = storyRange.Duplicate;
+            while (true)
+                {
+                var section = FindSection(searchRange, startMarker, endMarker);
+                if (section == null)
+                    break;
+                string? fieldMarker = section.InbetweenRange.Text;
+                if (fieldMarker is null)
+                    continue;
+                values.Add(fieldMarker.Trim());
+                if (remove)
+                    {
+                    section.OuterRange.Delete();
+                    searchRange = storyRange.Duplicate;
+                    }
+                else
+                    {
+                    searchRange.Start = section.EndMarker.End;
+                    }
+                }
+            }
+        return values;
         }
 
     private List<string> GetUniqueColumnValues(List<int> indices)
@@ -103,20 +152,47 @@ internal class DocBuilder
         foreach (string filePath in includedFilePaths)
             {
             if (!File.Exists(filePath))
-                throw new Exception($"File to include not found: {filePath}");
+                throw new System.Exception($"File to include not found: {filePath}");
             insertDocs[filePath] = this.word.Documents.Open(filePath, Visible: false);
             }
         }
 
     private void CheckAndRemoveAttachmentMarkers(Word.Document templateDoc)
         {
-        List<int> attachememntIndices = GetMarkerIndices(templateDoc, "%%ATTACH ", "%%", remove: true);
-        List<string> attachementFilePaths = GetUniqueColumnValues(attachememntIndices);
+        this.attachmentIndices = GetMarkerIndices(templateDoc, "%%ATTACH ", "%%", remove: true);
+        List<string> attachementFilePaths = GetUniqueColumnValues(attachmentIndices);
         foreach (string filePath in attachementFilePaths)
             {
             if (!File.Exists(filePath))
-                throw new Exception($"File to attach not found: {filePath}");
+                throw new System.Exception($"File to attach not found: {filePath}");
             }
+        }
+
+    private void CheckEmailMarkers(Word.Document doc)
+        {
+        var subjects = GetMarkerValues(doc, "%%SUBJECT ", "%%", remove: true);
+        if (subjects.Count > 1)
+            throw new System.Exception("Multiple SUBJECT markers found. Only one is allowed.");
+        this.subject = GetDecoratedString(subjects[0]);
+        
+        var mailTos = GetMarkerValues(doc, "%%MAILTO ", "%%", remove: true);
+        if (mailTos.Count > 1) //todo: allow multiple mailto markers for multiple recipients
+            throw new System.Exception("Multiple MAILTO markers found. Only one is allowed.");
+        this.mailTo = GetDecoratedString(mailTos[0]);
+        }
+
+    private static DecoratedString GetDecoratedString(string text)
+        {
+        List<int> indices = [];
+        string rxPattern = @"{{(\d*)}}";
+        foreach (Match match in Regex.Matches(text, rxPattern))
+            {
+            if (match.Groups.Count > 1 && int.TryParse(match.Groups[1].Value, out int index))
+                {
+                indices.Add(index);
+                }
+            }
+        return new DecoratedString { Value = text, indices = indices };
         }
 
     public static string MergedDocsDir => Path.Combine(Path.GetTempPath(), Constants.APP_NAME, "Merged");
@@ -163,6 +239,7 @@ private void CreateTemplateDoc()
             
             CheckIncludedDocs(doc);
             CheckAndRemoveAttachmentMarkers(doc);
+            CheckEmailMarkers(doc);
 
             //collect the ranges AFTER all modifications. This ensures that the ranges are correct.
             foreach (Word.Range storyRange in doc.StoryRanges)
@@ -245,6 +322,25 @@ private void CreateTemplateDoc()
                         section.OuterRange.FormattedText = insertDoc.Content.FormattedText;
                         }
                     }
+                }
+            //Add email variables (attachments, subject, mailto).
+            List<string> attachments = [];
+            foreach (var idx in this.attachmentIndices)
+                {
+                string filePath = excelData.GetRow(rowIndex)[idx];
+                if (!string.IsNullOrWhiteSpace(filePath))
+                    attachments.Add(filePath);
+                }
+            attachments = attachments.Distinct().ToList();
+            if (this.subject is not null)
+                {
+                string subjectDecorated = this.subject.Decorate(excelData.GetRow(rowIndex));
+                doc.Variables.Add(Constants.VAR_SUBJECT, subjectDecorated);
+                }
+            if (this.mailTo is not null)
+                {
+                string mailToDecorated = this.mailTo.Decorate(excelData.GetRow(rowIndex));
+                doc.Variables.Add(Constants.VAR_RECIPIENTS, mailToDecorated);
                 }
             doc.Save();
             }
