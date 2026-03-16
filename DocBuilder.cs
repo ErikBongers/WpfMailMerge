@@ -1,6 +1,6 @@
-﻿using Microsoft.Office.Interop.Outlook;
-using Microsoft.Office.Interop.Word;
+﻿using Microsoft.Office.Interop.Word;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Word = Microsoft.Office.Interop.Word;
 
@@ -49,11 +49,13 @@ internal class DocBuilder
     private List<int> attachmentIndices = [];
     private DecoratedString? subject;
     private DecoratedString? mailTo;
+    private Word.Documents documents;
 
     public DocBuilder(string templateDocPath, ExcelData excelData)
         {
         this.sourceDocPath = templateDocPath;
         this.word = new Word.Application();
+        this.documents = this.word.Documents;
         this.excelData = excelData;
         this.mailMergeTempDir = Path.Combine(Path.GetTempPath(), Constants.APP_NAME);
         this.mergedDocsDir = MergedDocsDir;
@@ -153,7 +155,7 @@ internal class DocBuilder
             {
             if (!File.Exists(filePath))
                 throw new System.Exception($"File to include not found: {filePath}");
-            insertDocs[filePath] = this.word.Documents.Open(filePath, Visible: false);
+            insertDocs[filePath] = this.documents.Open(filePath, Visible: false);
             }
         }
 
@@ -212,15 +214,15 @@ internal class DocBuilder
 
     public void BuildDoc(int rowIndex)
         {
-        BuildOneDoc(this.word.Documents.Open(this.templateDocPath), rowIndex);
+        BuildOneDoc(this.documents.Open(this.templateDocPath), rowIndex);
         }
 
 private void CreateTemplateDoc()
         {
-        Word.Document doc = this.word.Documents.Open(this.sourceDocPath);
+        Word.Document doc = this.documents.Open(this.sourceDocPath);
         doc.SaveAs2(FileName: this.templateDocPath, AddToRecentFiles: false);
         doc.Close();
-        doc = this.word.Documents.Open(this.templateDocPath);
+        doc = this.documents.Open(this.templateDocPath);
 
         try
             {
@@ -269,6 +271,7 @@ private void CreateTemplateDoc()
         finally
             {
             doc.Close();
+            Marshal.FinalReleaseComObject(doc);
             }
         }
 
@@ -276,7 +279,7 @@ private void CreateTemplateDoc()
         {
         string outputDocPath = Path.Combine(this.mergedDocsDir, $"{Constants.MERGED_FILE_PREFIX}{rowIndex}.docx");
         templateDoc.SaveAs2(FileName: outputDocPath, AddToRecentFiles: false); //todo: use FormattedText to copy content instead of saving template as new doc
-        Word.Document doc = this.word.Documents.Open(FileName: outputDocPath, Visible: false);
+        Word.Document doc = this.documents.Open(FileName: outputDocPath, Visible: false);
         try
             {
             foreach (var fieldRange in fieldRanges)
@@ -348,6 +351,7 @@ private void CreateTemplateDoc()
         finally
             {
             doc.Close();
+            Marshal.FinalReleaseComObject(doc);
             }
         }
 
@@ -371,7 +375,14 @@ private void CreateTemplateDoc()
 
     ~DocBuilder()
         {
+        foreach(var doc in this.insertDocs.Values)
+            {
+            doc.Close();
+            Marshal.FinalReleaseComObject(doc);
+            }
+        Marshal.FinalReleaseComObject(this.documents);
         this.word.Quit();
+        Marshal.FinalReleaseComObject(this.word);
         }
     }
 

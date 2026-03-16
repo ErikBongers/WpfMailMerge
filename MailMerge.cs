@@ -133,8 +133,8 @@ internal class MailMerge
         docBuilder.BuildDoc(3);
         docBuilder.BuildDoc(4);
         docBuilder.BuildDoc(5);
-        Thread.Sleep(1000); //probably not needed.
-        SendAllDocs(settings);
+        //Thread.Sleep(1000); //probably not needed.
+        //SendAllDocs(settings);
         }
 
     private bool PerformChecks(JsonSettings settings)
