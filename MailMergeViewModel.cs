@@ -86,32 +86,42 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             OnPropertyChanged(nameof(NamedRangesComboVisibility));
             }
         }
-    private string selectedNamedRange = "Waiting...";
+    private string selectedNamedRange = Constants.WAITING;
     public string SelectedNamedRange
         {
         get { return selectedNamedRange; }
-        set { selectedNamedRange = value; OnPropertyChanged(nameof(SelectedNamedRange)); }
+        set { 
+            selectedNamedRange = value; 
+            OnPropertyChanged(nameof(SelectedNamedRange));
+            OnPropertyChanged(nameof(CanStart));
+            }
         }
 
     public Visibility NamedRangesComboVisibility
         {
         get { return this.NamedRanges?.Result?.Count == 1 ? Visibility.Collapsed : Visibility.Visible; }
         }
-    private string savedNamedRange = "Waiting...";
+    private string savedNamedRange = Constants.WAITING;
     private bool useTestRecipient = true;
     public bool UseTestRecipient
         {
         get { return useTestRecipient; }
         set { 
-            useTestRecipient = value; OnPropertyChanged(nameof(UseTestRecipient)); 
+            useTestRecipient = value; 
+            OnPropertyChanged(nameof(UseTestRecipient)); 
             TestEmailVisibility = value ? Visibility.Visible : Visibility.Hidden;
+            OnPropertyChanged(nameof(CanStart));
             }
         }
     private string testRecipient = "erikbongers@outlook.com";
     public string TestRecipient
         {
         get { return testRecipient; }
-        set { testRecipient = value; OnPropertyChanged(nameof(TestRecipient)); }
+        set { 
+            testRecipient = value; 
+            OnPropertyChanged(nameof(TestRecipient));
+            OnPropertyChanged(nameof(CanStart));
+            }
         }
 
     private Visibility testEmailVisibility = Visibility.Visible;
@@ -124,19 +134,38 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
     public string WordTemplateFileName
         {
         get { return wordTemplateFileName; }
-        set { wordTemplateFileName = value; OnPropertyChanged(nameof(WordTemplateFileName)); }
+        set { 
+            wordTemplateFileName = value; 
+            OnPropertyChanged(nameof(WordTemplateFileName)); 
+            OnPropertyChanged(nameof(CanStart));
+            }
         }
     private string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
     public string DataSourceFileName
         {
         get { return dataSourceFileName; }
-        set { dataSourceFileName = value; OnPropertyChanged(nameof(DataSourceFileName)); }
+        set { 
+            dataSourceFileName = value; 
+            OnPropertyChanged(nameof(DataSourceFileName));
+            OnPropertyChanged(nameof(CanStart));
+            }
         }
     private string onBehalfOfEmail = "academie.berchem.muziek.woord@stedelijkonderwijs.be";
     public string OnBehalfOfEmail 
         {
         get { return onBehalfOfEmail; }
         set { onBehalfOfEmail = value; OnPropertyChanged(nameof(OnBehalfOfEmail)); }
+        }
+
+    public bool CanStart
+        {
+        get { 
+            return this.mailAccountIndex >= 0 
+                && !string.IsNullOrEmpty(this.wordTemplateFileName) 
+                && !string.IsNullOrEmpty(this.dataSourceFileName) 
+                && (this.UseTestRecipient == false || !string.IsNullOrEmpty(this.TestRecipient))
+                && this.SelectedNamedRange != Constants.WAITING;
+            }
         }
     #endregion
 
