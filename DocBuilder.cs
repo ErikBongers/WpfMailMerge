@@ -332,6 +332,7 @@ private void CreateTemplateDoc()
                     attachments.Add(filePath);
                 }
             attachments = attachments.Distinct().ToList();
+            doc.Variables.Add(Constants.VAR_ATTACHMENTS, string.Join(";", attachments));
             if (this.subject is not null)
                 {
                 string subjectDecorated = this.subject.Decorate(excelData.GetRow(rowIndex));

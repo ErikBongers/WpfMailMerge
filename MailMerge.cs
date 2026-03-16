@@ -109,6 +109,8 @@ internal class MailMerge
         docBuilder.BuildDoc(3);
         docBuilder.BuildDoc(4);
         docBuilder.BuildDoc(5);
+        Thread.Sleep(1000); //probably not needed.
+        SendAllDocs(settings);
         }
 
     private bool PerformChecks(JsonSettings settings)
@@ -352,6 +354,7 @@ internal class MailMerge
             Word.Document doc = word.Documents.Open(file, ReadOnly: true, Visible: false);
 
             string[] recipients = doc.Variables[Constants.VAR_RECIPIENTS].Value.Split(';');
+            string subject = doc.Variables[Constants.VAR_SUBJECT].Value;
 
             string[] attachments = new string[] { };
 
@@ -384,14 +387,15 @@ internal class MailMerge
                 {
                 if (!string.IsNullOrEmpty(att))
                     {
-                    string fileName = Path.GetFileName(att);
-                    string neWDir = @"C:\NoSharePoint\Attachments";
-                    string newPath = Path.Combine(neWDir, fileName);
-                    mailItem.Attachments.Add(newPath);
+                    mailItem.Attachments.Add(att);
+                    //string fileName = Path.GetFileName(att);
+                    //string neWDir = @"C:\NoSharePoint\Attachments";
+                    //string newPath = Path.Combine(neWDir, fileName);
+                    //mailItem.Attachments.Add(newPath);
                     }
                 }
 
-            mailItem.Subject = "subject";
+            mailItem.Subject = subject;
 
             mailItem.ReplyRecipients.Add("Academie Berchem <academie.berchem.muziek.woord@stedelijkonderwijs.be>");
 

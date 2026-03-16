@@ -1,3 +1,9 @@
+* Immediately send mails after generating the documents.
+
+* Checsk should NOT throw.
+
+* Why is "naam" column not found when the "Idx" column isn't present?
+
 * Dedup INSERTs and ATTACHs
 
 
