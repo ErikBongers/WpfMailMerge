@@ -16,6 +16,7 @@ public interface IProgressObservable
     {
     void ReportProgress(int value, int maxValue, string info);
     void SetProgress(int value);
+    void ReportError(string error);
     }
 
 public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
@@ -167,6 +168,12 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
                 && this.SelectedNamedRange != Constants.WAITING;
             }
         }
+    private bool inError = false;
+    public bool InError
+        {
+        get { return inError; }
+        set { inError = value; OnPropertyChanged(nameof(InError)); }
+        }
     #endregion
 
     private const string SETTINGS_FILENAME = "settings.json";
@@ -293,5 +300,11 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
     public void SetProgress(int value)
         {
         this.ProgressValue = value;
+        }
+
+    public void ReportError(string error)
+        {
+        this.StatusMessage = error;
+        this.InError = true;
         }
     }

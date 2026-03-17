@@ -50,6 +50,7 @@ internal class DocBuilder
     private DecoratedString? subject;
     private DecoratedString? mailTo;
     private Word.Documents documents;
+    private List<string> errors = [];
 
     public DocBuilder(string templateDocPath, ExcelData excelData)
         {
@@ -98,6 +99,11 @@ internal class DocBuilder
                 }
             }
         return indices;
+        }
+
+    public List<string> GetChecksResults()
+        {
+        return this.errors;
         }
 
     private List<string> GetMarkerValues(Word.Document templateDoc, string startMarker, string endMarker, bool remove) //todo: merge into GetMarkerIndices.
@@ -154,8 +160,9 @@ internal class DocBuilder
         foreach (string filePath in includedFilePaths)
             {
             if (!File.Exists(filePath))
-                throw new System.Exception($"File to include not found: {filePath}");
-            insertDocs[filePath] = this.documents.Open(filePath, Visible: false);
+                this.errors.Add($"File to include not found: {filePath}");
+            else
+                insertDocs[filePath] = this.documents.Open(filePath, Visible: false);
             }
         }
 
@@ -166,7 +173,7 @@ internal class DocBuilder
         foreach (string filePath in attachementFilePaths)
             {
             if (!File.Exists(filePath))
-                throw new System.Exception($"File to attach not found: {filePath}");
+                this.errors.Add($"File to attach not found: {filePath}");
             }
         }
 
@@ -174,12 +181,12 @@ internal class DocBuilder
         {
         var subjects = GetMarkerValues(doc, "%%SUBJECT ", "%%", remove: true);
         if (subjects.Count > 1)
-            throw new System.Exception("Multiple SUBJECT markers found. Only one is allowed.");
+            this.errors.Add("Multiple SUBJECT markers found. Only one is allowed.");
         this.subject = GetDecoratedString(subjects[0]);
         
         var mailTos = GetMarkerValues(doc, "%%MAILTO ", "%%", remove: true);
         if (mailTos.Count > 1) //todo: allow multiple mailto markers for multiple recipients
-            throw new System.Exception("Multiple MAILTO markers found. Only one is allowed.");
+            this.errors.Add("Multiple MAILTO markers found. Only one is allowed.");
         this.mailTo = GetDecoratedString(mailTos[0]);
         }
 

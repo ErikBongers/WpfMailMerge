@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfMailMerge"
+        xmlns:cnv="clr-namespace:XamlConverters"
         mc:Ignorable="d"
         Title="Mail Merge" 
         SizeToContent = "WidthAndHeight"
@@ -15,6 +16,9 @@
     <Window.DataContext>
         <local:MailMergeViewModel/>
     </Window.DataContext>
+    <Window.Resources>
+        <cnv:BoolToColorBrushConverter x:Key="ColorConverter"></cnv:BoolToColorBrushConverter>
+    </Window.Resources>
     <StackPanel Orientation="Vertical" Margin="10,10,10,20">
         <GroupBox Header="Gegevens">
             <StackPanel Orientation="Vertical" Margin="10">
@@ -78,8 +82,9 @@
                     IsEnabled="{Binding Path=CanStart}"/>
         </DockPanel>
         <DockPanel LastChildFill="True">
-            <Label x:Name="lblStatusMessage" Height="29" VerticalAlignment="Top" Margin="50,0,50,0"
-               Content="{Binding Path=StatusMessage, UpdateSourceTrigger=PropertyChanged}"/>
+            <Label x:Name="lblStatusMessage" Height="auto" VerticalAlignment="Top" Margin="50,0,50,0"
+                Content="{Binding Path=StatusMessage, UpdateSourceTrigger=PropertyChanged}"
+                Background="{Binding Path=InError, Converter={StaticResource ColorConverter}, ConverterParameter=Red;Transparent;0.2, Mode=OneWay}"/>
         </DockPanel>
         <Grid Margin="50,0,50,0">
             <ProgressBar x:Name="progressBar" Height="20"
@@ -87,7 +92,8 @@
                          Value="{Binding Path=ProgressValue, UpdateSourceTrigger=PropertyChanged}"
                          />
             <Label x:Name="lblProgress"
-               Content="{Binding Path=ProgressInfo, UpdateSourceTrigger=PropertyChanged}"/>
+               Content="{Binding Path=ProgressInfo, UpdateSourceTrigger=PropertyChanged}"
+                   />
         </Grid>
     </StackPanel>
 </Window>
