@@ -175,6 +175,20 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         get { return inError; }
         set { inError = value; OnPropertyChanged(nameof(InError)); }
         }
+    private bool isRunning = false;
+    public bool IsRunning
+        {
+        get { return isRunning; }
+        set { 
+            isRunning = value; 
+            OnPropertyChanged(nameof(IsRunning)); 
+            OnPropertyChanged(nameof(StartStopText)); 
+            }
+        }
+    public string StartStopText
+        {
+        get { return isRunning ? "Stop" : "Start"; }
+        }
     #endregion
 
     private const string SETTINGS_FILENAME = "settings.json";
@@ -184,6 +198,9 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
     public MailMergeViewModel()
         {
         mailMerge.SetProgressObservable(this);
+        mailMerge.RunningStateChanged += (_, _) => {
+            this.IsRunning = this.mailMerge.IsRunning;
+        };
         LoadJsonSettings();
         mailAccounts = new NotifyTaskCompletion<List<MailAccount>>(LoadMailAccounts(), new List<MailAccount>([new MailAccount { DisplayName = "Loading...", Index = -1 }]));
         mailAccounts.PropertyChanged += (s, e) =>
@@ -283,10 +300,13 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             };
         }
 
-    public void Start()
+    public async Task StartStopAsync()
         {
         this.SaveJsonSettings();
-        this.mailMerge.Start(ScrapeSettings());
+        if (this.mailMerge.IsRunning)
+            this.mailMerge.Stop();
+        else
+            await this.mailMerge.StartAsync(ScrapeSettings());
         }
 
     public void ReportProgress(int value, int maxValue, string info)

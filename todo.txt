@@ -10,7 +10,7 @@ ExcelDataSource (exel file name)
 DocBuilder (settings, excel data)
   - owns Word instance.
   - Started on Start click
-  - Creates template.
+  - Creates template: in constructor !!!
   - has BuildDoc(n) function.
   > put this one in Task?
 

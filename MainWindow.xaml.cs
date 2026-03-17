@@ -13,10 +13,10 @@ public partial class MainWindow : Window
         InitializeComponent();
         }
 
-    private void btnStart_Click(object sender, RoutedEventArgs e)
+    private void btnStartStop_Click(object sender, RoutedEventArgs e)
         {
         MailMergeViewModel? mailMergeViewModel = this.DataContext as MailMergeViewModel;
-        mailMergeViewModel?.Start();
+        mailMergeViewModel?.StartStopAsync();
         }
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

@@ -14,13 +14,20 @@ namespace WpfMailMerge;
 
 internal class MailMerge
     {
+    public event EventHandler? RunningStateChanged;
+
     private Outlook.Application? outlook;
 
     private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
     const int batchLen = 20;
     private IProgressObservable progressListener;
     ExcelDataSource? excelDataSource;
+    private CancellationTokenSource? cancelToken;
 
+    public bool IsRunning {
+        get;
+        private set;
+        }
 
     public MailMerge()
         {
@@ -70,7 +77,7 @@ internal class MailMerge
         return this.excelDataSource;
         }
 
-    public void Start(JsonSettings settings)
+    public async Task StartAsync(JsonSettings settings)
         {
         //progressForm.StopRequested = true;
 
@@ -95,6 +102,8 @@ internal class MailMerge
         //MergeModifySaveAllAsync(0);
         //SendAllDocs(settings);
         //DocBuilder docBuilder = new DocBuilder(settings.WordTemplateFileName);
+        this.IsRunning = true;
+        this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
         if (!this.PerformChecks(settings))
             return;
         if (settings.NamedRange == null)
@@ -107,25 +116,71 @@ internal class MailMerge
         AllowUIToUpdate();
         var data = this.excelDataSource.GetData(settings.NamedRange);
         this.excelDataSource.CloseExcel();
-        var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
+
+        var progressIndicator = new Progress<DocServer.Status>((status) => this.ReportDocsProgress(status));
+        cancelToken = new CancellationTokenSource();
+        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token));
+        this.IsRunning = false;
+        this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
+        //this.progressListener.ReportInfo("Sending mails...");
+        //Thread.Sleep(1000); //probably not needed.
+        //MailSender mailSender = new();
+        //mailSender.SetProgressObservable(this.progressListener);
+        //mailSender.SendAllDocs(settings);
+        }
+
+    public void Stop()
+        {
+        this.cancelToken?.Cancel();
+        }
+
+    void ReportDocsProgress(DocServer.Status status)
+        {
+        switch(status.StatusType)
+            {
+            case DocServer.StatusType.Message:
+                this.progressListener.ReportInfo(status.GetMessage());
+                break;
+            case DocServer.StatusType.Progress:
+                var progressInfo = status.GetProgressInfo();
+                this.progressListener.ReportProgress(progressInfo.CurrentValue, progressInfo.MaxValue, "todo...");
+                break;
+            }
+        }
+
+    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken)
+        {
+        this.progressListener.ReportInfo("Checking template file...");
+        var docBuilder = new DocBuilder(settings.WordTemplateFileName, excelData);
+        if(CancelBuild()) return;
         var checkResults = docBuilder.GetChecksResults();
-        if(checkResults.Count > 0)
+        if (checkResults.Count > 0)
             {
             this.progressListener.ReportError(String.Join("\n", checkResults));
             docBuilder.CloseAll();
             return;
             }
         this.progressListener.ReportInfo("Creating mail documents...");
-        docBuilder.BuildDoc(1);
-        docBuilder.BuildDoc(2);
-        //docBuilder.BuildDoc(3);
-        //docBuilder.BuildDoc(4);
-        //docBuilder.BuildDoc(5);
-        this.progressListener.ReportInfo("Sending mails...");
-        Thread.Sleep(1000); //probably not needed.
-        MailSender mailSender = new();
-        mailSender.SetProgressObservable(this.progressListener);
-        mailSender.SendAllDocs(settings);
+
+        for(int i = 1; i <=5; i++)
+            {
+            this.progressListener.ReportProgress(0, 5, "blah...");
+            docBuilder.BuildDoc(1);
+            if (CancelBuild()) 
+                return;
+            }
+        this.progressListener.ReportInfo("Finished creating documents.");
+        docBuilder.CloseAll();
+
+        bool CancelBuild()
+            {
+            if (cancelToken.IsCancellationRequested)
+                {
+                this.progressListener.ReportInfo("Stopped...");
+                docBuilder.CloseAll();
+                }
+            return cancelToken.IsCancellationRequested;
+            }
         }
 
 

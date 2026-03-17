@@ -78,7 +78,8 @@
             </StackPanel>
         </GroupBox>
         <DockPanel LastChildFill="True" Margin="0,20,0,0">
-            <Button x:Name="btnStart" Content="Start" VerticalAlignment="Top" Click="btnStart_Click" Width="100"
+            <Button x:Name="btnStartStop" VerticalAlignment="Top" Click="btnStartStop_Click" Width="100"
+                    Content="{Binding Path=StartStopText}"
                     IsEnabled="{Binding Path=CanStart}"/>
         </DockPanel>
         <DockPanel LastChildFill="True">
