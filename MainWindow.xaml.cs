@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
         MailMergeViewModel? mailMerge = this.DataContext as MailMergeViewModel;
+        mailMerge?.CloseAll();
         mailMerge?.SaveJsonSettings();
         }
     }

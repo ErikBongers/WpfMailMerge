@@ -1,3 +1,7 @@
+* Use OpenXML sdk?????
+  >>> https://stackoverflow.com/questions/56288248/how-to-copy-a-word-document-content-in-another-word-document-including-bookmark
+  >>> https://stackoverflow.com/questions/39382093/how-to-copy-the-content-of-one-word-document-into-another-word-document?noredirect=1&lq=1
+
 * Checsk should NOT throw.
 
 * Why is "naam" column not found when the "Idx" column isn't present?

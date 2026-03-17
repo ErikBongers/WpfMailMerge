@@ -121,7 +121,7 @@ internal class ExcelDataSource
 
     public void CloseExcel()
         {
-        if (this.excel != null)
+        if (this.excel is not null)
             {
             this.excel.Quit();
             Marshal.FinalReleaseComObject(this.excel);

@@ -313,4 +313,14 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         {
         this.StatusMessage = info;
         }
+
+    public void CloseAll()
+        {
+        this.mailMerge.CloseAll();
+        }
+
+    ~MailMergeViewModel()
+        {
+        this.CloseAll();
+        }
     }
