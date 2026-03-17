@@ -221,14 +221,14 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             };
         }
 
-    private static async Task<List<MailAccount>> LoadMailAccounts() //todo: can I remove the await and just return the tast from Task.Run()?
+    private static Task<List<MailAccount>> LoadMailAccounts() //todo: can I remove the await and just return the tast from Task.Run()?
         {
-        return await Task.Run(() => MailMerge.GetSendersAsync());
+        return Task.Run(() => MailMerge.GetSendersAsync());
         }
 
-    private static async Task<List<RangeDef>> LoadDataSourceRanges(string dataSourceFileName, MailMerge mailMerge)
+    private static Task<List<RangeDef>> LoadDataSourceRanges(string dataSourceFileName, MailMerge mailMerge)
         {
-        return await Task.Run(() =>
+        return Task.Run(() =>
             {
                 ExcelDataSource excelDataSource = mailMerge.SetExcelDataSource(dataSourceFileName);
                 return excelDataSource.GetRanges();
