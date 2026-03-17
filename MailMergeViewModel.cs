@@ -17,6 +17,7 @@ public interface IProgressObservable
     void ReportProgress(int value, int maxValue, string info);
     void SetProgress(int value);
     void ReportError(string error);
+    void ReportInfo(string info);
     }
 
 public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
@@ -306,5 +307,10 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         {
         this.StatusMessage = error;
         this.InError = true;
+        }
+
+    public void ReportInfo(string info)
+        {
+        this.StatusMessage = info;
         }
     }

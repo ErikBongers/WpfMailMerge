@@ -125,6 +125,7 @@ internal class MailMerge
             return;
         if (this.excelDataSource is null)
             return;
+        this.progressListener.ReportInfo("Preparing data...");
         var data = this.excelDataSource.GetData(settings.NamedRange);
         this.excelDataSource.CloseExcel();
         var docBuilder = new DocBuilder(settings.WordTemplateFileName, data);
@@ -452,5 +453,5 @@ internal class DummyProgressObservable : IProgressObservable
     public void ReportProgress(int value, int maxValue, string info){}
     public void SetProgress(int value){}
     public void ReportError(string error){}
-
+    public void ReportInfo(string info){}
     }
