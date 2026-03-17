@@ -380,14 +380,20 @@ private void CreateTemplateDoc()
         return new Section { StartMarker = collapseRangeStart.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
         }
 
-    ~DocBuilder()
+    public void CloseAll()
         {
-        foreach(var doc in this.insertDocs.Values)
+        foreach (var doc in this.insertDocs.Values)
             {
-            doc.Close();
+            doc.Close();//todo: wrap in exception handler?
             Marshal.FinalReleaseComObject(doc);
             }
+        this.insertDocs.Clear();
         Marshal.FinalReleaseComObject(this.documents);
+        }
+
+    ~DocBuilder()
+        {
+        this.CloseAll();
         this.word.Quit();
         Marshal.FinalReleaseComObject(this.word);
         }
