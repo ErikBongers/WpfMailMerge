@@ -224,7 +224,7 @@ internal class DocBuilder
         BuildOneDoc(this.documents.Open(this.templateDocPath), rowIndex);
         }
 
-private void CreateTemplateDoc()
+    private void CreateTemplateDoc()
         {
         Word.Document doc = this.documents.Open(this.sourceDocPath);
         doc.SaveAs2(FileName: this.templateDocPath, AddToRecentFiles: false);

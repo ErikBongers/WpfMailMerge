@@ -1,11 +1,5 @@
-﻿using Microsoft.Office.Interop.Word;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
 

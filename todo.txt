@@ -1,3 +1,24 @@
+Application build
+-----------------
+ViewModel contains all the UI fields.
+
+ExcelDataSource (exel file name)
+  - owns Excel instance.
+  - started by UI
+  - closed after getting data and before DocBuilder
+
+DocBuilder (settings, excel data)
+  - owns Word instance.
+  - Started on Start click
+  - Creates template.
+  - has BuildDoc(n) function.
+  > put this one in Task?
+
+MailSender ()
+  - owns word and outlook.
+  - SendAllDocs()
+
+
 * Use OpenXML sdk?????
   >>> https://stackoverflow.com/questions/56288248/how-to-copy-a-word-document-content-in-another-word-document-including-bookmark
   >>> https://stackoverflow.com/questions/39382093/how-to-copy-the-content-of-one-word-document-into-another-word-document?noredirect=1&lq=1
