@@ -51,13 +51,15 @@ internal class DocBuilder
     private DecoratedString? mailTo;
     private Word.Documents documents;
     private List<string> errors = [];
+    private readonly IWordToEmailStrategy wordToEmail;
 
-    public DocBuilder(string templateDocPath, ExcelData excelData)
+    public DocBuilder(string templateDocPath, ExcelData excelData, IWordToEmailStrategy wordToEmail)
         {
         this.sourceDocPath = templateDocPath;
+        this.excelData = excelData;
+        this.wordToEmail = wordToEmail;
         this.word = new Word.Application();
         this.documents = this.word.Documents;
-        this.excelData = excelData;
         this.mailMergeTempDir = Path.Combine(Path.GetTempPath(), Constants.APP_NAME);
         this.mergedDocsDir = MergedDocsDir;
         if (!Directory.Exists(this.mergedDocsDir))
@@ -353,7 +355,7 @@ internal class DocBuilder
                 string mailToDecorated = this.mailTo.Decorate(excelData.GetRow(rowIndex));
                 doc.Variables.Add(Constants.VAR_RECIPIENTS, mailToDecorated);
                 }
-            doc.Save();
+            this.wordToEmail.SaveDoc(doc);
             }
         finally
             {

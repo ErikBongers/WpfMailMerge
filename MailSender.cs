@@ -15,10 +15,12 @@ internal class MailSender
     private Outlook.NameSpace session;
     private Outlook.Accounts accounts;
     private JsonSettings settings;
+    private IWordToEmailStrategy wordToEmail;
 
-    public MailSender(JsonSettings settings)
+    public MailSender(JsonSettings settings, IWordToEmailStrategy wordToEmail)
         {
         this.settings = settings;
+        this.wordToEmail = wordToEmail;
         this.word = new Word.Application();
         this.outlook = new Outlook.Application();
         this.session = this.outlook.Session;
@@ -51,6 +53,7 @@ internal class MailSender
     public void SendOneMail(string file)
         {
         Word.Document doc = this.word.Documents.Open(file, ReadOnly: true, Visible: false);
+        //string rtf = File.ReadAllText(file+".rtf");
 
         string[] recipients = doc.Variables[Constants.VAR_RECIPIENTS].Value.Split(';');
         string subject = doc.Variables[Constants.VAR_SUBJECT].Value;
@@ -63,8 +66,7 @@ internal class MailSender
             }
         catch { }
 
-        doc.Content.Copy();
-        Thread.Sleep(1000); //sometimes the clipboard is not ready yet, so we wait a bit
+        this.wordToEmail.MaybeCopy(doc);
 
         Outlook.MailItem mailItem = (Outlook.MailItem)this.outlook.CreateItem(Outlook.OlItemType.olMailItem);
 
@@ -98,12 +100,10 @@ internal class MailSender
 
         mailItem.ReplyRecipients.Add("Academie Berchem <academie.berchem.muziek.woord@stedelijkonderwijs.be>");
 
-        var inspector = mailItem.GetInspector;
-        Word.Document? mailDoc = inspector.WordEditor as Word.Document;
-
-        mailDoc?.Content.Paste();
-
-        mailItem.Display();
+        //mailItem.BodyFormat = Outlook.OlBodyFormat.olFormatRichText;
+        //mailItem.RTFBody = System.Text.Encoding.ASCII.GetBytes(rtf);
+        //mailItem.BodyFormat = Outlook.OlBodyFormat.olFormatHTML; //make attachments appear on top.
+        wordToEmail.FillEmail(doc, mailItem);
         mailItem.Send();
 
         doc.Close(false);

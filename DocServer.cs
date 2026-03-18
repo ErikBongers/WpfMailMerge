@@ -48,26 +48,5 @@ internal class Status
     public ProgressInfo GetProgressInfo() { return (ProgressInfo)this.Data; }
     }
 
-internal class DocServer
-    {
-    DocBuilder? docBuilder;
-    private readonly string templateDocPath;
-    private readonly ExcelData excelData;
-    private readonly Channel<ProgressInfo> channel = Channel.CreateUnbounded<ProgressInfo>();
 
-    public DocServer(string templateDocPath, ExcelData excelData)
-        {
-        this.templateDocPath = templateDocPath;
-        this.excelData = excelData;
-        }
-
-    private void GenerateTemplate()
-        {
-        if (docBuilder != null)
-            return;
-        //template is created in constructor:
-        docBuilder = new DocBuilder(this.templateDocPath, this.excelData);
-        }
-
-    }
 

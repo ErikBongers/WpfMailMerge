@@ -92,10 +92,13 @@ internal class MailMerge
 
         var channel = Channel.CreateUnbounded<string>();
 
+        //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
+        IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
+
         var progressIndicator = new Progress<DocServer.Status>((status) => this.ReportDocsProgress(status));
         cancelToken = new CancellationTokenSource();
-        var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, channel.Reader));
-        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer));
+        var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, channel.Reader, wordToEmail));
+        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer, wordToEmail));
 
         this.IsRunning = false;
         this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
@@ -124,10 +127,10 @@ internal class MailMerge
             }
         }
 
-    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<DocServer.Status> progress, ChannelWriter<string> channelWriter)
+    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<DocServer.Status> progress, ChannelWriter<string> channelWriter, IWordToEmailStrategy wordToEmail)
         {
         progress.Report(new DocServer.Status("Checking template file..."));
-        var docBuilder = new DocBuilder(settings.WordTemplateFileName, excelData);
+        var docBuilder = new DocBuilder(settings.WordTemplateFileName, excelData, wordToEmail);
         if(CancelBuild()) return;
         var checkResults = docBuilder.GetChecksResults();
         if (checkResults.Count > 0)
@@ -163,9 +166,9 @@ internal class MailMerge
             }
         }
 
-    private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<DocServer.Status> progress, ChannelReader<string> channelReader)
+    private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<DocServer.Status> progress, ChannelReader<string> channelReader, IWordToEmailStrategy wordToEmail)
         {
-        MailSender mailSender = new(settings);
+        MailSender mailSender = new(settings, wordToEmail);
         mailSender.SetProgressObservable(progressListener);
         Debug.WriteLine("Waiting for mails to send...");
         while(true)
