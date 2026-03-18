@@ -14,7 +14,7 @@ public class MailAccount
 
 public interface IProgressObservable
     {
-    void ReportProgress(int value, int maxValue, string info);
+    void ReportProgress(int value, int maxValue);
     void SetProgress(int value);
     void ReportError(string error);
     void ReportInfo(string info);
@@ -309,11 +309,10 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             await this.mailMerge.StartAsync(ScrapeSettings());
         }
 
-    public void ReportProgress(int value, int maxValue, string info)
+    public void ReportProgress(int value, int maxValue)
         {
         this.ProgressMaxValue = maxValue;
         this.ProgressValue = value;
-        this.StatusMessage = info;
         int percentage = (int)((double)ProgressValue / ProgressMaxValue * 100);
         this.ProgressInfo = $"{ProgressValue} ({percentage}%) of {ProgressMaxValue}";
         }

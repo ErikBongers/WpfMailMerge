@@ -59,7 +59,7 @@ internal class MailMerge
         {
         var outlook = new Outlook.Application();
         List<MailAccount> accounts = new List<MailAccount>();
-        for (int i = 1; i <= outlook.Session.Accounts.Count; i++)
+        for (int i = 1; i < outlook.Session.Accounts.Count; i++)
             {
             accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
             }
@@ -115,7 +115,7 @@ internal class MailMerge
                 break;
             case DocServer.StatusType.Progress:
                 var progressInfo = status.GetProgressInfo();
-                this.progressListener.ReportProgress(progressInfo.CurrentValue, progressInfo.MaxValue, "todo...");
+                this.progressListener.ReportProgress(progressInfo.CurrentValue, progressInfo.MaxValue);
                 break;
             case DocServer.StatusType.Error:
                 var error = status.GetError();
@@ -219,7 +219,7 @@ internal class MailMerge
 
 internal class DummyProgressObservable : IProgressObservable
     {
-    public void ReportProgress(int value, int maxValue, string info){}
+    public void ReportProgress(int value, int maxValue){}
     public void SetProgress(int value){}
     public void ReportError(string error){}
     public void ReportInfo(string info){}
