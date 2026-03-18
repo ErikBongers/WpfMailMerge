@@ -79,29 +79,6 @@ internal class MailMerge
 
     public async Task StartAsync(JsonSettings settings)
         {
-        //progressForm.StopRequested = true;
-
-        //do
-        //    {
-        //    do
-        //        {
-        //        System.Windows.Forms.Application.DoEvents();
-
-        //        if (!progressForm.StopRequested)
-        //            break;
-
-        //        } while (true);
-
-        //    } while (!SendAllDocs());
-        //    } while (!MergeModifySaveAll(CInt(progressForm.txtStart.value)));
-        //this.TestExcel();
-        //if (!this.PerformChecks())
-        //    return;
-        //this.SaveJsonSettings();
-
-        //MergeModifySaveAllAsync(0);
-        //SendAllDocs(settings);
-        //DocBuilder docBuilder = new DocBuilder(settings.WordTemplateFileName);
         this.IsRunning = true;
         this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
         if (!this.PerformChecks(settings))
@@ -113,7 +90,7 @@ internal class MailMerge
         if (this.excelDataSource is null)
             return;
         this.progressListener.ReportInfo("Preparing data...");
-        AllowUIToUpdate();
+        AllowUIToUpdate(); //todo: put in task and get rid of this.
         var data = this.excelDataSource.GetData(settings.NamedRange);
         this.excelDataSource.CloseExcel();
 
@@ -122,11 +99,6 @@ internal class MailMerge
         await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token));
         this.IsRunning = false;
         this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
-        //this.progressListener.ReportInfo("Sending mails...");
-        //Thread.Sleep(1000); //probably not needed.
-        //MailSender mailSender = new();
-        //mailSender.SetProgressObservable(this.progressListener);
-        //mailSender.SendAllDocs(settings);
         }
 
     public void Stop()
@@ -162,10 +134,10 @@ internal class MailMerge
             }
         this.progressListener.ReportInfo("Creating mail documents...");
 
-        for(int i = 1; i <=5; i++)
+        for(int i = 1; i <=excelData.Rows.Count; i++)
             {
             this.progressListener.ReportProgress(0, 5, "blah...");
-            docBuilder.BuildDoc(1);
+            docBuilder.BuildDoc(i);
             if (CancelBuild()) 
                 return;
             }
@@ -227,17 +199,6 @@ internal class MailMerge
                 }
             }
         return true;
-        }
-
-    private int GetAccountIndex(string emailAddress)
-        {
-        for (int i = 1; i <= this.GetOutlook().Session.Accounts.Count; i++)
-            {
-            if (this.GetOutlook().Session.Accounts[i].DisplayName == emailAddress)
-                return i;
-            }
-
-        return -1;
         }
 
     public void CloseAll()
