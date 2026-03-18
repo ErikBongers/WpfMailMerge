@@ -96,7 +96,7 @@ internal class MailMerge
 
         var progressIndicator = new Progress<DocServer.Status>((status) => this.ReportDocsProgress(status));
         cancelToken = new CancellationTokenSource();
-        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token));
+        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator));
         this.IsRunning = false;
         this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -117,31 +117,35 @@ internal class MailMerge
                 var progressInfo = status.GetProgressInfo();
                 this.progressListener.ReportProgress(progressInfo.CurrentValue, progressInfo.MaxValue, "todo...");
                 break;
+            case DocServer.StatusType.Error:
+                var error = status.GetError();
+                this.progressListener.ReportError(error.message);
+                break;
             }
         }
 
-    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken)
+    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<DocServer.Status> progress)
         {
-        this.progressListener.ReportInfo("Checking template file...");
+        progress.Report(new DocServer.Status("Checking template file..."));
         var docBuilder = new DocBuilder(settings.WordTemplateFileName, excelData);
         if(CancelBuild()) return;
         var checkResults = docBuilder.GetChecksResults();
         if (checkResults.Count > 0)
             {
-            this.progressListener.ReportError(String.Join("\n", checkResults));
+            progress.Report(new DocServer.Status(String.Join("\n", checkResults), -1));
             docBuilder.CloseAll();
             return;
             }
-        this.progressListener.ReportInfo("Creating mail documents...");
+        progress.Report(new DocServer.Status("Creating mail documents..."));
 
         for(int i = 1; i <=excelData.Rows.Count; i++)
             {
-            this.progressListener.ReportProgress(0, 5, "blah...");
+            progress.Report(new DocServer.Status(0, excelData.Rows.Count, i));
             docBuilder.BuildDoc(i);
             if (CancelBuild()) 
                 return;
             }
-        this.progressListener.ReportInfo("Finished creating documents.");
+        progress.Report(new DocServer.Status("Finished creating documents."));
         docBuilder.CloseAll();
 
         bool CancelBuild()
