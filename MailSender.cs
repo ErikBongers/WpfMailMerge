@@ -31,7 +31,7 @@ internal class MailSender
 
     public void SetProgressObservable(IProgressObservable progressListener) => this.progressListener = progressListener;
 
-    public bool SendAllDocs(CancellationToken cancelToken, IProgress<DocServer.Status> progress)
+    public bool SendAllDocs(CancellationToken cancelToken, IProgress<Progress.Status> progress)
         {
         var files = Directory.GetFiles(DocBuilder.MergedDocsDir);
 

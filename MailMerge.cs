@@ -95,7 +95,7 @@ internal class MailMerge
         //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
         IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
 
-        var progressIndicator = new Progress<DocServer.Status>((status) => this.ReportDocsProgress(status));
+        var progressIndicator = new Progress<Progress.Status>((status) => this.ReportDocsProgress(status));
         cancelToken = new CancellationTokenSource();
         var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, channel.Reader, wordToEmail));
         await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer, wordToEmail));
@@ -109,41 +109,41 @@ internal class MailMerge
         this.cancelToken?.Cancel();
         }
 
-    void ReportDocsProgress(DocServer.Status status)
+    void ReportDocsProgress(Progress.Status status)
         {
         switch(status.StatusType)
             {
-            case DocServer.StatusType.Message:
+            case Progress.StatusType.Message:
                 this.progressListener.ReportInfo(status.GetMessage());
                 break;
-            case DocServer.StatusType.Progress:
+            case Progress.StatusType.Progress:
                 var progressInfo = status.GetProgressInfo();
                 this.progressListener.ReportProgress(progressInfo.CurrentValue, progressInfo.MaxValue);
                 break;
-            case DocServer.StatusType.Error:
+            case Progress.StatusType.Error:
                 var error = status.GetError();
                 this.progressListener.ReportError(error.message);
                 break;
             }
         }
 
-    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<DocServer.Status> progress, ChannelWriter<string> channelWriter, IWordToEmailStrategy wordToEmail)
+    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelWriter<string> channelWriter, IWordToEmailStrategy wordToEmail)
         {
-        progress.Report(new DocServer.Status("Checking template file..."));
+        progress.Report(new Progress.Status("Checking template file..."));
         var docBuilder = new DocBuilder(settings.WordTemplateFileName, excelData, wordToEmail);
         if(CancelBuild()) return;
         var checkResults = docBuilder.GetChecksResults();
         if (checkResults.Count > 0)
             {
-            progress.Report(new DocServer.Status(String.Join("\n", checkResults), -1));
+            progress.Report(new Progress.Status(String.Join("\n", checkResults), -1));
             docBuilder.CloseAll();
             return;
             }
-        progress.Report(new DocServer.Status("Creating mail documents..."));
+        progress.Report(new Progress.Status("Creating mail documents..."));
 
         for(int i = 1; i <=excelData.Rows.Count; i++)
             {
-            progress.Report(new DocServer.Status(0, excelData.Rows.Count, i));
+            progress.Report(new Progress.Status(0, excelData.Rows.Count, i));
             string fileName = docBuilder.BuildDoc(i);
             if(!channelWriter.TryWrite(fileName))
                 {
@@ -152,7 +152,7 @@ internal class MailMerge
             if (CancelBuild()) 
                 return;
             }
-        progress.Report(new DocServer.Status("Finished creating documents."));
+        progress.Report(new Progress.Status("Finished creating documents."));
         docBuilder.CloseAll();
 
         bool CancelBuild()
@@ -166,7 +166,7 @@ internal class MailMerge
             }
         }
 
-    private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<DocServer.Status> progress, ChannelReader<string> channelReader, IWordToEmailStrategy wordToEmail)
+    private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<string> channelReader, IWordToEmailStrategy wordToEmail)
         {
         MailSender mailSender = new(settings, wordToEmail);
         mailSender.SetProgressObservable(progressListener);

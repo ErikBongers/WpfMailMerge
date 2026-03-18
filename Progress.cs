@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Channels;
-using System.Threading.Tasks;
-using System.Windows.Media.Animation;
-
-namespace WpfMailMerge.DocServer;
+﻿
+namespace WpfMailMerge.Progress;
 
 internal enum StatusType { Message, Progress, Error }
 
