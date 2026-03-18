@@ -219,9 +219,9 @@ internal class DocBuilder
             }
         }
 
-    public void BuildDoc(int rowIndex)
+    public string BuildDoc(int rowIndex)
         {
-        BuildOneDoc(this.documents.Open(this.templateDocPath), rowIndex);
+        return BuildOneDoc(this.documents.Open(this.templateDocPath), rowIndex);
         }
 
     private void CreateTemplateDoc()
@@ -282,7 +282,7 @@ internal class DocBuilder
             }
         }
 
-    private void BuildOneDoc(Word.Document templateDoc, int rowIndex)
+    private string BuildOneDoc(Word.Document templateDoc, int rowIndex)
         {
         string outputDocPath = Path.Combine(this.mergedDocsDir, $"{Constants.MERGED_FILE_PREFIX}{rowIndex}.docx");
         templateDoc.SaveAs2(FileName: outputDocPath, AddToRecentFiles: false); //todo: use FormattedText to copy content instead of saving template as new doc
@@ -360,6 +360,7 @@ internal class DocBuilder
             doc.Close();
             Marshal.FinalReleaseComObject(doc);
             }
+        return outputDocPath;
         }
 
     private Section? FindSection(Word.Range searchRange, string startMarker, string endMarker)

@@ -1,12 +1,8 @@
-﻿using Microsoft.VisualBasic;
-using System.ComponentModel;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
-using System.Runtime;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
+using System.Threading.Channels;
 using System.Windows;
-using System.Windows.Threading;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
 
@@ -89,14 +85,18 @@ internal class MailMerge
             return;
         if (this.excelDataSource is null)
             return;
-        this.progressListener.ReportInfo("Preparing data...");
-        AllowUIToUpdate(); //todo: put in task and get rid of this.
+        this.progressListener.ReportInfo("Preparing data..."); //todo: put in await Task.Run()
         var data = this.excelDataSource.GetData(settings.NamedRange);
         this.excelDataSource.CloseExcel();
 
+
+        var channel = Channel.CreateUnbounded<string>();
+
         var progressIndicator = new Progress<DocServer.Status>((status) => this.ReportDocsProgress(status));
         cancelToken = new CancellationTokenSource();
-        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator));
+        var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, channel.Reader));
+        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer));
+
         this.IsRunning = false;
         this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -124,7 +124,7 @@ internal class MailMerge
             }
         }
 
-    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<DocServer.Status> progress)
+    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<DocServer.Status> progress, ChannelWriter<string> channelWriter)
         {
         progress.Report(new DocServer.Status("Checking template file..."));
         var docBuilder = new DocBuilder(settings.WordTemplateFileName, excelData);
@@ -141,7 +141,11 @@ internal class MailMerge
         for(int i = 1; i <=excelData.Rows.Count; i++)
             {
             progress.Report(new DocServer.Status(0, excelData.Rows.Count, i));
-            docBuilder.BuildDoc(i);
+            string fileName = docBuilder.BuildDoc(i);
+            if(!channelWriter.TryWrite(fileName))
+                {
+                throw new Exception("Can't write to channel.");
+                }
             if (CancelBuild()) 
                 return;
             }
@@ -159,25 +163,23 @@ internal class MailMerge
             }
         }
 
-
-    //Source - https://stackoverflow.com/a/73181682
-    //Posted by Yaron Binder, modified by community.See post 'Timeline' for change history
-    //Retrieved 2026-03-17, License - CC BY-SA 4.0
-    private static void AllowUIToUpdate()
+    private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<DocServer.Status> progress, ChannelReader<string> channelReader)
         {
-        DispatcherFrame frame = new();
-        // DispatcherPriority set to Input, the highest priority
-        Dispatcher.CurrentDispatcher.Invoke(DispatcherPriority.Input, new DispatcherOperationCallback(delegate (object parameter)
+        MailSender mailSender = new(settings);
+        mailSender.SetProgressObservable(progressListener);
+        Debug.WriteLine("Waiting for mails to send...");
+        while(true)
             {
-                frame.Continue = false;
-                Thread.Sleep(20); // Stop all processes to make sure the UI update is perform
-                return null;
-                }), null);
-        Dispatcher.PushFrame(frame);
-        // DispatcherPriority set to Input, the highest priority
-        Application.Current.Dispatcher.Invoke(DispatcherPriority.Input, new Action(delegate { }));
+            string fileName = await channelReader.ReadAsync();
+            mailSender.SendOneMail(fileName);
+            if (cancelToken.IsCancellationRequested)
+                {
+                mailSender.CloseAll();
+                break;
+                }
+            }
+        Debug.WriteLine("SendMails ended.");
         }
-
 
     private bool PerformChecks(JsonSettings settings)
         {
@@ -214,7 +216,6 @@ internal class MailMerge
         {
         CloseAll();
         }
-    
     }
 
 internal class DummyProgressObservable : IProgressObservable

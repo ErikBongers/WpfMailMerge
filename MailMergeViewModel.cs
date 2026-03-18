@@ -191,8 +191,6 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         }
     #endregion
 
-    private const string SETTINGS_FILENAME = "settings.json";
-
     private readonly MailMerge mailMerge = new();
 
     public MailMergeViewModel()
@@ -253,37 +251,22 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             });
         }
 
-    private void LoadJsonSettings()
+    public void LoadJsonSettings()
         {
-        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string settingsFile = Path.Combine(localDir, Constants.APP_NAME, SETTINGS_FILENAME);
-        if (File.Exists(settingsFile))
-            {
-            string json = File.ReadAllText(settingsFile);
-            // Deserialize json to load settings
-            JsonSettings? settings = System.Text.Json.JsonSerializer.Deserialize<JsonSettings>(json);
-            if (settings == null)
-                return;
-            this.WordTemplateFileName = settings.WordTemplateFileName;
-            this.DataSourceFileName = settings.DataSourceFileName;
-            this.UseTestRecipient = settings.UseTestRecipient;
-            this.TestRecipient = settings.TestRecipient;
-            this.savedMailAccountIndex = settings.MailAccountIndex??-1;
-            this.MailAccountIndex = -1; //until we can load the mail accounts.
-            this.savedNamedRange = settings.NamedRange??"";
-            }
+        var settings = JsonSettings.LoadJsonSettings();
+        this.WordTemplateFileName = settings.WordTemplateFileName;
+        this.DataSourceFileName = settings.DataSourceFileName;
+        this.UseTestRecipient = settings.UseTestRecipient;
+        this.TestRecipient = settings.TestRecipient;
+        this.savedMailAccountIndex = settings.MailAccountIndex;
+        this.MailAccountIndex = -1; //until we can load the mail accounts.
+        this.savedNamedRange = settings.NamedRange ?? "";
         }
+
 
     public void SaveJsonSettings()
         {
-        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string appDir = Path.Combine(localDir, Constants.APP_NAME);
-        if (!Directory.Exists(appDir))
-            Directory.CreateDirectory(appDir);
-        string settingsFile = Path.Combine(appDir, SETTINGS_FILENAME);
-        JsonSettings settings = ScrapeSettings();
-        string json = System.Text.Json.JsonSerializer.Serialize(settings);
-        File.WriteAllText(settingsFile, json);
+        ScrapeSettings().SaveJsonSettings();
         }
 
     private JsonSettings ScrapeSettings()
