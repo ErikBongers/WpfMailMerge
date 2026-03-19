@@ -1,22 +1,12 @@
-Application build
------------------
-ViewModel contains all the UI fields.
+* RTF contains the vars!
+: {\*\docvar {Dko3Recepient}{acercicek@gmail.com}}{\*\docvar {Dko3Subject}{Inschrijving voor Havin Masal ACER}}
+  {\*\docvar {Dko3Attachments}{C:\'5cUsers\'5cerikb\'5cDesktop\'5cDeMuziekschool.pdf}}
+  > Alter IStrategy:
+    > add Opaquedoc = strategy.OpenDoc();
+    > strategy.getAttachments(opaquedoc)
+    > .getSubject(opaquedoc)
+    > .getRecipients(opaquedoc)
 
-ExcelDataSource (exel file name)
-  - owns Excel instance.
-  - started by UI
-  - closed after getting data and before DocBuilder
-
-DocBuilder (settings, excel data)
-  - owns Word instance.
-  - Started on Start click
-  - Creates template: in constructor !!!
-  - has BuildDoc(n) function.
-  > put this one in Task?
-
-MailSender ()
-  - owns word and outlook.
-  - SendAllDocs()
 
 
 * Use OpenXML sdk?????

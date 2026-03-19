@@ -52,19 +52,13 @@ internal class MailSender
 
     public void SendOneMail(string file)
         {
-        Word.Document doc = this.word.Documents.Open(file, ReadOnly: true, Visible: false);
-        //string rtf = File.ReadAllText(file+".rtf");
+        //Word.Document doc = this.word.Documents.Open(file, ReadOnly: true, Visible: false);
+        OpaqueDoc doc = this.wordToEmail.OpenDoc(this.word, file);
 
-        string[] recipients = doc.Variables[Constants.VAR_RECIPIENTS].Value.Split(';');
-        string subject = doc.Variables[Constants.VAR_SUBJECT].Value;
+        string[] recipients = this.wordToEmail.GetRecipients(doc);
+        string subject = this.wordToEmail.GetSubject(doc);
 
-        string[] attachments = [];
-
-        try
-            {
-            attachments = doc.Variables[Constants.VAR_ATTACHMENTS].Value.Split(';');
-            }
-        catch { }
+        string[] attachments = this.wordToEmail.GetAttachments(doc);
 
         this.wordToEmail.MaybeCopy(doc);
 
@@ -100,13 +94,10 @@ internal class MailSender
 
         mailItem.ReplyRecipients.Add("Academie Berchem <academie.berchem.muziek.woord@stedelijkonderwijs.be>");
 
-        //mailItem.BodyFormat = Outlook.OlBodyFormat.olFormatRichText;
-        //mailItem.RTFBody = System.Text.Encoding.ASCII.GetBytes(rtf);
-        //mailItem.BodyFormat = Outlook.OlBodyFormat.olFormatHTML; //make attachments appear on top.
         wordToEmail.FillEmail(doc, mailItem);
         mailItem.Send();
 
-        doc.Close(false);
+        this.wordToEmail.CloseDoc(doc);
         }
 
     public void CloseAll()
