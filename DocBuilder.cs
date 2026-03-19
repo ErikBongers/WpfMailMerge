@@ -1,7 +1,10 @@
 ﻿using Microsoft.Office.Interop.Word;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks.Dataflow;
+using System.Windows;
 using Word = Microsoft.Office.Interop.Word;
 
 namespace WpfMailMerge;
@@ -215,10 +218,21 @@ internal class DocBuilder
 
     public static void ClearMergeDir()
         {
+        bool hasErrors = false;
         foreach (string file in Directory.EnumerateFiles(MergedDocsDir))
+        {
+            try
             {
-            File.Delete(file);
+                File.Delete(file);
             }
+            catch (Exception e)
+            {
+                hasErrors = true;
+                Debug.WriteLine(e);
+            }
+        }
+        if (hasErrors)
+            MessageBox.Show("Can't delete all files!");
         }
 
     public string BuildDoc(int rowIndex)

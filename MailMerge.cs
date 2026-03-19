@@ -55,7 +55,7 @@ internal class MailMerge
         {
         var outlook = new Outlook.Application();
         List<MailAccount> accounts = new List<MailAccount>();
-        for (int i = 1; i < outlook.Session.Accounts.Count; i++)
+        for (int i = 1; i <= outlook.Session.Accounts.Count; i++)
             {
             accounts.Add(new MailAccount { DisplayName = outlook.Session.Accounts[i].DisplayName, Index = i });
             }
