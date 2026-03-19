@@ -216,7 +216,7 @@ internal class DocBuilder
         return !Directory.EnumerateFiles(MergedDocsDir).Any();
         }
 
-    public static void ClearMergeDir()
+    public static bool ClearMergeDir()
         {
         bool hasErrors = false;
         foreach (string file in Directory.EnumerateFiles(MergedDocsDir))
@@ -233,6 +233,7 @@ internal class DocBuilder
         }
         if (hasErrors)
             MessageBox.Show("Can't delete all files!");
+        return !hasErrors;
         }
 
     public string BuildDoc(int rowIndex)

@@ -75,16 +75,27 @@ internal class MailMerge
 
     public async Task StartAsync(JsonSettings settings)
         {
-        this.IsRunning = true;
-        this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
+        SetRunningState(true);
         if (!this.PerformChecks(settings))
+        {
+            SetRunningState(false);
             return;
+        }
         if (settings.NamedRange == null)
+        {
+            SetRunningState(false);
             return;
+        }
         if (this.excelDataSource is null)
+        {
+            SetRunningState(false);
             return;
+        }
         if (this.excelDataSource is null)
+        {
+            SetRunningState(false);
             return;
+        }
         this.progressListener.ReportInfo("Preparing data..."); //todo: put in await Task.Run()
         var data = this.excelDataSource.GetData(settings.NamedRange);
         this.excelDataSource.CloseExcel();
@@ -100,9 +111,14 @@ internal class MailMerge
         var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, channel.Reader, wordToEmail));
         await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer, wordToEmail));
 
-        this.IsRunning = false;
-        this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
+        SetRunningState(false);
         }
+
+    private void SetRunningState(bool runningState)
+    {
+        this.IsRunning = runningState;
+        this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     public void Stop()
         {
@@ -204,7 +220,8 @@ internal class MailMerge
                 return false;
             if (reply == MessageBoxResult.Yes)
                 {
-                DocBuilder.ClearMergeDir();
+                if(!DocBuilder.ClearMergeDir())
+                    return false;
                 }
             }
         return true;
