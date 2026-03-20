@@ -1,3 +1,185 @@
+* Save no crash:
+  > Rename file is fastest!
+    > two levels of data: the new file name could also be meaningfull:
+        : preparing_file2.docx
+        : sending_file2.docx
+        : sent_file2.docx
+    > this could happen in both threads: doc creation and sending.
+    > a recovery file can contain
+      - start time of last job
+      - name and system date of data file
+        > to ensure file hasn't been changed in between
+    > no recovery file means job completed.
+    > if a "preparing" file exists: that's where thread 1 ended. A "Sending" file for thread 2.
+    > to restart only sending: rename files back to original.
+      > thread 1 just channels the file names.
+
+>>> https://stackoverflow.com/questions/9327416/how-to-ensure-saving-of-application-state-on-crash-c-sharp
+
+Use stream.Seek(0, SeekOrigin.Begin) or set stream.Position = 0.
+Truncate: Immediately call stream.SetLength(stream.Position) to ensure any leftover "trailing" data from the previous version is removed.
+To ensure a file is persisted in the event of a crash, you must flush the data through two different layers of buffering: the .NET internal buffer and the Operating System (OS) buffer. 
+fileStream.Flush(flushToDisk: true);
+If you want every write operation to bypass the OS cache automatically without calling Flush(true) manually every time, you can initialize your stream with the FileOptions.WriteThrough flag. 
+var fs = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.Read, 
+                        bufferSize: 4096, FileOptions.WriteThrough);
+Use code with caution. Best for: Scenarios where durability is more important than raw write speed. 
+
+
+
+in .net , to constantly overwrite a small file, is it best to keep it open, seek the beginning, or is it better to close and open it?
+In .NET, if you need to constantly overwrite a small file (e.g., several times per second), the most efficient approach is to keep the file open and seek to the beginning for each write. 
+
+Stack Overflow
+Stack Overflow
+ +2
+Why Keeping it Open is Better
+Performance: Opening and closing a file is a heavy operation involving system calls, security checks, and resource allocation. It can take up to 40x longer than the actual read/write operation.
+Resource Management: Repeatedly opening and closing creates unnecessary overhead for the OS to update file handles and system locks.
+Reliability: Keeping a handle open ensures your process maintains its lock, preventing other applications from intercepting the file between your operations. 
+Stack Overflow
+Stack Overflow
+ +3
+Best Practice Implementation
+To properly overwrite an open file in .NET, you must handle the case where new data is shorter than the old data:
+Seek to the beginning: Use stream.Seek(0, SeekOrigin.Begin) or set stream.Position = 0.
+Write new data: Perform your write operation.
+Truncate: Immediately call stream.SetLength(stream.Position) to ensure any leftover "trailing" data from the previous version is removed.
+Flush (Optional): If data durability is critical (e.g., protection against power loss), call stream.Flush() after each write to force the OS buffer to disk. 
+Stack Overflow
+Stack Overflow
+ +4
+When to Close and Reopen
+Low Frequency: If you only overwrite the file once every few minutes, use File.WriteAllText(). The performance gain of keeping it open is negligible, and closing it frees the resource for other apps.
+External Access: If other programs need to read or modify the file between your updates, you should close the handle to release the lock. 
+Experts Exchange
+Experts Exchange
+ +4
+Are you writing this data from a single thread, or do you need to coordinate access across multiple parts of your app?
+AI responses may include mistakes. Learn more
+
+
+
+
+
+undefined
+undefined
+undefined
+16 sites
+File I/O Performance Tips - JacksonDunstan.com
+04 Jan 2016 — Reading and writing are tremendously more efficient if done in chunks rather than one byte at a time. While you probably won't wri...
+
+Jackson Dunstan
+
+Reusing a filestream - Stack Overflow
+22 Feb 2010 — * 5 Answers. Sorted by: 15. Your suspicion is correct - if you reset the position of an open file stream and write content that's ...
+
+Stack Overflow
+C# StreamWriter keeping file open?? - Experts Exchange
+22 Aug 2008 — You're not dealing with a memory stream, so all the log entries are sitting in memory. So unless . Net has a memory leak issue wit...
+
+Experts Exchange
+Show all
+How do i make sure the stream is persisted, in case of a crash?
+To ensure a file is persisted in the event of a crash, you must flush the data through two different layers of buffering: the .NET internal buffer and the Operating System (OS) buffer. 
+Microsoft Dev Blogs
+Microsoft Dev Blogs
+ +1
+1. Flush to Disk
+A standard Flush() only moves data from your application into the OS's memory. If the system loses power or the OS crashes, that data is lost. To force it all the way to the physical storage media, use: 
+Stack Overflow
+Stack Overflow
+ +4
+csharp
+fileStream.Flush(flushToDisk: true);
+Use code with caution.
+
+How it works: Passing true tells the OS to flush its intermediate file buffers and "write through" to the hardware.
+Performance: This is significantly slower than a standard flush because it waits for the physical disk to acknowledge the write. 
+Stack Overflow
+Stack Overflow
+ +3
+2. Use the WriteThrough Option 
+If you want every write operation to bypass the OS cache automatically without calling Flush(true) manually every time, you can initialize your stream with the FileOptions.WriteThrough flag. 
+Stack Overflow
+Stack Overflow
+csharp
+var fs = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.Read, 
+                        bufferSize: 4096, FileOptions.WriteThrough);
+Use code with caution.
+
+Best for: Scenarios where durability is more important than raw write speed. 
+Medium
+Medium
+3. Handle Application-Level Crashes
+If the application crashes (but the OS stays up), simply using a using block or calling Dispose() is usually enough. .NET automatically attempts to flush and close the file handle during the disposal process. 
+4. Atomic Overwrites (The "Paranoid" Method) 
+Even with Flush(true), if a crash occurs during the write, your file might end up half-written (corrupted). For critical data, the standard "Safe Save" pattern is: 
+Reddit
+Reddit
+ +1
+Write the data to a temporary file in the same directory.
+Call Flush(true) on the temp file.
+Use File.Replace() or File.Move(..., overwrite: true) to swap the temp file with the real one.
+Note: This is an atomic operation at the OS level; the file will either be the "old version" or the "new version," never a corrupted mix of both. 
+Reddit
+Reddit
+ +1
+Are you more concerned about the app crashing, or the entire machine losing power?
+AI responses may include mistakes. Learn more
+
+
+
+
+
+undefined
+undefined
+undefined
+12 sites
+Do I need to use FileStream.Flush() or FileStream.Flush(true)?
+12 Aug 2014 — * 2 Answers. Sorted by: Calling Dispose , or any kind of Flush , will make it so that other software will see the data that has be...
+
+Stack Overflow
+File IO improvements in .NET 6 - Microsoft Developer Blogs
+01 Sept 2021 — bufferSize sets the size of the FileStream private buffer used for buffering. When a user requests a read of n bytes, and n is les...
+
+Microsoft Dev Blogs
+
+How does Windows handle a IDisposable class when ... - Reddit
+25 Sept 2024 — Edit. A comment reminded me: this is also why for SUPER CRITICAL programs you should not save a new version of a file by just casu...
+
+Reddit
+Show all
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 * RTF contains the vars!
 : {\*\docvar {Dko3Recepient}{acercicek@gmail.com}}{\*\docvar {Dko3Subject}{Inschrijving voor Havin Masal ACER}}
   {\*\docvar {Dko3Attachments}{C:\'5cUsers\'5cerikb\'5cDesktop\'5cDeMuziekschool.pdf}}
