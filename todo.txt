@@ -1,3 +1,75 @@
+Priorities
+------------
+* Recovery
+  > start where stopped
+  > start where crashed
+  > start at any point (in master data)
+* UI for strategy:
+  - Send html mail (attachments at top, flickering screen)
+  - RTF: attachement at bottom (no flickering)
+
+
+
+
+
+
+
+* Avoid saving as docx when using RTF?
+
+Remove power query
+-------------------
+> Do we really need to join the data in XLS?
+> Sqlite in memory?
+> Hashtables?
+> What is needed?
+- Dko3Data
+    > currently in htlm table format, but can be exported as csv, json,...
+    - Vestigingsplaatsen (just the names)
+    - Werklijst
+- Excel
+    - Info Vestigingsplaatsen (TextToInsert, DocToInsert, Attachment(s)
+    - Info Klassen
+    - Etc,...
+> Expand joined table into columns????
+  > append the extra row's field names to the original field names.
+  > Only N:1 joins!!!
+    > no duplicating master rows, please.
+
+
+Always a backup method
+------------------------
+* Keep option to paste dko3 data in excel and get it there instead of directly.
+* Send mails per class
+  OK: Is ALWAYS possible.
+  > Without hours per student.
+
+Get LIVE data
+--------------
+* Option in MailMerge to "wait for data...".
+* Option in MailMerge to "get data"
+  > only to get ALL rows, not filtered.
+    > ...or can we ?
+  > Have a data-sources-definition file, where the urls (or commands) for data sources are defined.
+    : "https/google-cloude/ebo/.../DkoCommand?GetAllMailMergeData
+
+MailMerge Generic
+------------------
+* Create a data-definition:
+    - Data tables
+    - Joins
+      > A master table (no hash)
+      > For each other table, the 2 join columns
+        > this allows the secondary tables to have a hash column.
+      > Joined tables should have unique rows to avoid having to duplicate master rows.
+
+* comm with dko3
+  > identify machine/connection
+  > mailmerge sends command
+    : //cloud:getMailMergeData(ALL) or something...
+  > or plugin sends it to mailMerge:
+
+Recovery
+---------
 * Save no crash:
   > Rename file is fastest!
     > two levels of data: the new file name could also be meaningfull:
