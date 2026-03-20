@@ -102,7 +102,7 @@ internal class WordToRtfEmail : IWordToEmailStrategy
         doc.SaveAs2(FileName: fullName + ".rtf", FileFormat: WdSaveFormat.wdFormatRTF);
         }
 
-    public void MaybeCopy(OpaqueDoc doc) {}
+    public void MaybeCopy(OpaqueDoc doc) { }
 
     public void FillEmail(OpaqueDoc doc, MailItem mailItem)
         {
@@ -112,7 +112,7 @@ internal class WordToRtfEmail : IWordToEmailStrategy
 
     public OpaqueDoc OpenDoc(Word.Application word, string fileName)
         {
-        string rtf = File.ReadAllText(fileName+".rtf");
+        string rtf = File.ReadAllText(fileName + ".rtf");
         return new OpaqueDoc { doc = rtf };
         }
 
@@ -120,7 +120,7 @@ internal class WordToRtfEmail : IWordToEmailStrategy
         {
         //nothing to close - just a string.
         }
-    
+
 
     public string[] GetRecipients(OpaqueDoc doc)
         {
@@ -149,6 +149,36 @@ internal class WordToRtfEmail : IWordToEmailStrategy
         if (startOfVar < 0)
             return "";
         var endOfVar = rtf.IndexOf('}', startOfVar);
-        return rtf.Substring(startOfVar + 1, endOfVar - startOfVar - 1).Replace(@"\'5c", @"\");
+        return Unescape(rtf.Substring(startOfVar + 1, endOfVar - startOfVar - 1).Replace(@"\'5c", @"\"));
+        }
+
+    private static byte CharToHex(char c)
+        {
+        int i = c - '0';
+        if (i > 9)
+            i -= 'a' - '9' - 1;
+        return (byte)i;
+        }
+
+    private static string Unescape(string text)
+        {
+        Encoding sourceEncoding = Encoding.GetEncoding(1252);
+        string result = text;
+        int pos = 0;
+        while (true)
+            {
+            pos = text.IndexOf(@"\'", pos);
+            if (pos < 0)
+                break;
+            string strToReplace = text.Substring(pos, 4);
+            string strHex = strToReplace.Substring(2, 2);
+            pos += 4;
+            byte hex = (byte)(CharToHex(strHex[0]) * 16 + CharToHex(strHex[1]));
+            byte[] encBytes = [hex];
+            byte[] utf8Bytes = Encoding.Convert(sourceEncoding, Encoding.UTF8, encBytes);
+            string replacement = Encoding.UTF8.GetString(utf8Bytes);
+            result = result.Replace(strToReplace, replacement);
+            }
+        return result;
         }
     }
