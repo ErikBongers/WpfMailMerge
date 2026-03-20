@@ -102,11 +102,11 @@ internal class MailSender
 
     public void CloseAll()
         {
-        this.word.Quit();
+        try { this.word.Quit(false); } catch (Exception) { } //word may already have been closed by the other thread.
         Marshal.FinalReleaseComObject(this.word);
         Marshal.FinalReleaseComObject(this.accounts);
         Marshal.FinalReleaseComObject(this.session);
-        this.outlook.Quit();
+        //this.outlook.Quit();
         Marshal.FinalReleaseComObject(this.outlook);
         }
     

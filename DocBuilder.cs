@@ -47,6 +47,7 @@ internal class DocBuilder
     private string mailMergeTempDir;
     private string mergedDocsDir;
     private string templateDocPath;
+    private Word.Document templateDoc;
     private List<FieldRangeDef> fieldRanges = [];
     private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
@@ -68,7 +69,7 @@ internal class DocBuilder
         if (!Directory.Exists(this.mergedDocsDir))
             Directory.CreateDirectory(this.mergedDocsDir);
         this.templateDocPath = Path.Combine(mailMergeTempDir, "template.docx");
-        CreateTemplateDoc();
+        this.templateDoc = CreateTemplateDoc();
         }
 
     private List<int> GetMarkerIndices(Word.Document templateDoc, string startMarker, string endMarker, bool remove)
@@ -236,18 +237,9 @@ internal class DocBuilder
         return !hasErrors;
         }
 
-    public string BuildDoc(int rowIndex)
+    private Word.Document CreateTemplateDoc()
         {
-        return BuildOneDoc(this.documents.Open(this.templateDocPath), rowIndex);
-        }
-
-    private void CreateTemplateDoc()
-        {
-        Word.Document doc = this.documents.Open(this.sourceDocPath);
-        doc.SaveAs2(FileName: this.templateDocPath, AddToRecentFiles: false);
-        doc.Close();
-        doc = this.documents.Open(this.templateDocPath);
-
+        var doc = this.documents.Add(this.sourceDocPath) ?? throw new Exception("Template doc not found.");
         try
             {
             foreach (Word.Range storyRange in doc.StoryRanges)
@@ -290,20 +282,18 @@ internal class DocBuilder
                     }
                 }
             fieldRanges = fieldRanges.OrderByDescending(fr => fr.Start).ToList();
-            doc.Save();
+            return doc;
             }
         finally
             {
-            doc.Close();
-            Marshal.FinalReleaseComObject(doc);
             }
         }
 
-    private string BuildOneDoc(Word.Document templateDoc, int rowIndex)
+    public string BuildDoc(int rowIndex)
         {
-        string outputDocPath = Path.Combine(this.mergedDocsDir, $"{Constants.MERGED_FILE_PREFIX}{rowIndex}.docx");
-        templateDoc.SaveAs2(FileName: outputDocPath, AddToRecentFiles: false); //todo: use FormattedText to copy content instead of saving template as new doc
-        Word.Document doc = this.documents.Open(FileName: outputDocPath, Visible: false);
+        string fullName = Path.Combine(this.mergedDocsDir, $"{Constants.MERGED_FILE_PREFIX}{rowIndex}.docx");
+        Word.Document doc = this.documents.Add(Visible: false);
+        doc.Content.FormattedText = this.templateDoc.Content;
         try
             {
             foreach (var fieldRange in fieldRanges)
@@ -370,14 +360,14 @@ internal class DocBuilder
                 string mailToDecorated = this.mailTo.Decorate(excelData.GetRow(rowIndex));
                 doc.Variables.Add(Constants.VAR_RECIPIENTS, mailToDecorated);
                 }
-            this.wordToEmail.SaveDoc(doc);
+            this.wordToEmail.SaveDoc(doc, fullName);
             }
         finally
             {
             doc.Close();
             Marshal.FinalReleaseComObject(doc);
             }
-        return outputDocPath;
+        return fullName;
         }
 
     private Section? FindSection(Word.Range searchRange, string startMarker, string endMarker)
@@ -400,6 +390,8 @@ internal class DocBuilder
 
     public void CloseAll()
         {
+        this.templateDoc.Close(false);
+        Marshal.FinalReleaseComObject(this.templateDoc);
         foreach (var doc in this.insertDocs.Values)
             {
             doc.Close();//todo: wrap in exception handler?
@@ -407,13 +399,13 @@ internal class DocBuilder
             }
         this.insertDocs.Clear();
         Marshal.FinalReleaseComObject(this.documents);
+        try { this.word.Quit(false); } catch (Exception) { } //word may already have been closed by the other thread.
+        Marshal.FinalReleaseComObject(this.word);
         }
 
     ~DocBuilder()
         {
         this.CloseAll();
-        this.word.Quit();
-        Marshal.FinalReleaseComObject(this.word);
         }
     }
 

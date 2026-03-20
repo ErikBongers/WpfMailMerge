@@ -103,8 +103,8 @@ internal class MailMerge
 
         var channel = Channel.CreateUnbounded<string>();
 
-        IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
-        //IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
+        //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
+        IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
 
         var progressIndicator = new Progress<Progress.Status>((status) => this.ReportDocsProgress(status));
         cancelToken = new CancellationTokenSource();

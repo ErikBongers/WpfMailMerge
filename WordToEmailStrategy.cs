@@ -10,7 +10,7 @@ namespace WpfMailMerge;
 
 internal interface IWordToEmailStrategy
     {
-    void SaveDoc(Word.Document doc);
+    void SaveDoc(Word.Document doc, string fullName);
     OpaqueDoc OpenDoc(Word.Application word, string fileName);
     void CloseDoc(OpaqueDoc doc);
     void MaybeCopy(OpaqueDoc doc);
@@ -34,16 +34,21 @@ internal class WordCopyPaste : IWordToEmailStrategy
         this.settings = settings;
         }
 
-    public void SaveDoc(Document doc)
+    public void SaveDoc(Document doc, string fullName)
         {
-        doc.Save();
+        doc.SaveAs2(FileName: fullName);
         }
 
     public OpaqueDoc OpenDoc(Word.Application word, string fileName)
         {
         return new OpaqueDoc { doc = word.Documents.Open(fileName, ReadOnly: true, Visible: false) };
         }
-
+    
+    public void CloseDoc(OpaqueDoc doc)
+        {
+        ((Word.Document)doc.doc).Close();
+        }
+    
     public string[] GetRecipients(OpaqueDoc doc)
         {
         return ((Word.Document)doc.doc).Variables[Constants.VAR_RECIPIENTS].Value.Split(';');
@@ -81,11 +86,6 @@ internal class WordCopyPaste : IWordToEmailStrategy
 
         mailItem.Display();
         }
-
-    public void CloseDoc(OpaqueDoc doc)
-        {
-        ((Word.Document)doc.doc).Close();
-        }
     }
 
 internal class WordToRtfEmail : IWordToEmailStrategy
@@ -97,10 +97,9 @@ internal class WordToRtfEmail : IWordToEmailStrategy
         this.settings = settings;
         }
 
-    public void SaveDoc(Document doc)
+    public void SaveDoc(Document doc, string fullName)
         {
-        doc.Save();
-        doc.SaveAs2(FileName: doc.FullName + ".rtf", FileFormat: WdSaveFormat.wdFormatRTF);
+        doc.SaveAs2(FileName: fullName + ".rtf", FileFormat: WdSaveFormat.wdFormatRTF);
         }
 
     public void MaybeCopy(OpaqueDoc doc) {}
