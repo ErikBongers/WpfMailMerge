@@ -76,4 +76,9 @@ public class JsonRecovery
         {
         JsonFile<JsonRecovery>.Save(this, FILENAME);
         }
+
+    public static void Delete()
+        {
+        File.Delete(JsonFile<JsonRecovery>.CreateDirAndGetFileName(FILENAME));
+        }
     }

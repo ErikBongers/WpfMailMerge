@@ -163,4 +163,8 @@ public class ExcelData
 
     public List<string> Headers => headers;
     public List<string> GetRow(int index) => rows[index];
+    public void Truncate(int max)
+        {
+        this.rows = this.rows.Take(max).ToList();
+        }
     }

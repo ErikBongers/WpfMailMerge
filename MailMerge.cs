@@ -98,6 +98,7 @@ internal class MailMerge
         }
         this.progressListener.ReportInfo("Preparing data..."); //todo: put in await Task.Run()
         var data = this.excelDataSource.GetData(settings.NamedRange);
+        data.Truncate(5); //todo: TEST!
         this.excelDataSource.CloseExcel();
 
 
@@ -110,6 +111,8 @@ internal class MailMerge
         cancelToken = new CancellationTokenSource();
         var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, channel.Reader, wordToEmail));
         await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer, wordToEmail));
+        
+
 
         SetRunningState(false);
         }
@@ -159,18 +162,19 @@ internal class MailMerge
 
         CreateRecoveryFile(settings);
 
-        for(int i = 1; i <=excelData.Rows.Count; i++)
+        for(int i = 1; i <excelData.Rows.Count; i++)
             {
-            progress.Report(new Progress.Status(0, excelData.Rows.Count, i));
             string fileName = docBuilder.BuildDoc(i);
-            if(!channelWriter.TryWrite(fileName))
+            if (!channelWriter.TryWrite(fileName))
                 {
                 throw new Exception("Can't write to channel.");
                 }
+            progress.Report(new Progress.Status(0, excelData.Rows.Count, i+1));
             if (CancelBuild()) 
                 return;
             }
         progress.Report(new Progress.Status("Finished creating documents."));
+        JsonRecovery.Delete();
         docBuilder.CloseAll();
 
         bool CancelBuild()

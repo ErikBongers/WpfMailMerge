@@ -1,6 +1,5 @@
-* Create recovery file.
-  > outside Merged dir.
-  > dates of template and data files.
+* recovery file
+  > Delete on completion.
 
 Recovery
 ---------
