@@ -1,5 +1,13 @@
-* recovery file
-  > Delete on completion.
+* recovery
+  > rename sent files to sent_...
+  > Define a starting point
+    - start generating file n and start sending file x
+      > n is a number
+      > x is a filename!
+       > erm...where to get it?
+         > read from Merged?
+           > probably...
+    
 
 Recovery
 ---------

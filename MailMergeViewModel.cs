@@ -297,7 +297,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         this.ProgressMaxValue = maxValue;
         this.ProgressValue = value;
         int percentage = (int)((double)ProgressValue / ProgressMaxValue * 100);
-        this.ProgressInfo = $"{ProgressValue} ({percentage}%) of {ProgressMaxValue+1}";
+        this.ProgressInfo = $"{ProgressValue} ({percentage}%) of {ProgressMaxValue}";
         }
 
     public void SetProgress(int value)

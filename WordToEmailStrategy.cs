@@ -18,6 +18,7 @@ internal interface IWordToEmailStrategy
     string[] GetAttachments(OpaqueDoc doc);
     string GetSubject(OpaqueDoc doc);
     void FillEmail(OpaqueDoc doc, Outlook.MailItem mailItem);
+    void MarkDocAsSent(OpaqueDoc doc, string fileName);
     }
 
 class OpaqueDoc
@@ -48,7 +49,14 @@ internal class WordCopyPaste : IWordToEmailStrategy
         {
         ((Word.Document)doc.doc).Close();
         }
-    
+
+    public void MarkDocAsSent(OpaqueDoc doc, string fileName)
+        {
+        string sentFileName = Path.GetFileName(fileName);
+        string path = Path.GetDirectoryName(fileName)!;
+        File.Move(fileName, Path.Combine(path, "sent_" + sentFileName));
+        }
+
     public string[] GetRecipients(OpaqueDoc doc)
         {
         return ((Word.Document)doc.doc).Variables[Constants.VAR_RECIPIENTS].Value.Split(';');
@@ -121,6 +129,13 @@ internal class WordToRtfEmail : IWordToEmailStrategy
         //nothing to close - just a string.
         }
 
+    public void MarkDocAsSent(OpaqueDoc doc, string fileName)
+        {
+        string fullName = fileName + ".rtf";
+        string sentFileName = Path.GetFileName(fullName);
+        string path = Path.GetDirectoryName(fullName)!;
+        File.Move(fullName, Path.Combine(path, "sent_" + sentFileName));
+        }
 
     public string[] GetRecipients(OpaqueDoc doc)
         {

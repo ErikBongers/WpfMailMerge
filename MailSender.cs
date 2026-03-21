@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Runtime.InteropServices;
+using System.Windows.Markup;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
 
@@ -98,6 +99,7 @@ internal class MailSender
         mailItem.Send();
 
         this.wordToEmail.CloseDoc(doc);
+        this.wordToEmail.MarkDocAsSent(doc, file);
         }
 
     public void CloseAll()
