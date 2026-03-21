@@ -189,14 +189,14 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         {
         get { return isRunning ? "Stop" : "Start"; }
         }
-    private int requestedStartIndex = 0;
+    private int requestedStartIndex = 1; //1-based, because user indexing.
     public int RequestedStartIndex
         {
         get { return requestedStartIndex; }
         set { 
             requestedStartIndex = value; 
             OnPropertyChanged(nameof(RequestedStartIndex));
-            this.mailMerge.RequestedStartIndex = this.requestedStartIndex;
+            this.mailMerge.RequestedStartIndex = this.requestedStartIndex-1; //convert to zero based.
             }
         }
     #endregion
