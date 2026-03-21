@@ -1,0 +1,15 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                     xmlns:system="clr-namespace:System;assembly=mscorlib">
+    <system:String x:Key="Word template">Word template:</system:String>
+    <system:String x:Key="Excel workbook">Excel workbook:</system:String>
+    <system:String x:Key="Data">Data</system:String>
+    <system:String x:Key="Email">Email</system:String>
+    <system:String x:Key="Sender:">Sender:</system:String>
+    <system:String x:Key="On behalf of:">On behalf of:</system:String>
+    <system:String x:Key="Recipient:">Recipient:</system:String>
+    <system:String x:Key="Use test address">Use test address</system:String>
+    <system:String x:Key="Test email:">Test email:</system:String>
+    <system:String x:Key="Start info">Start info</system:String>
+    <system:String x:Key="Start at index:">Start at index:</system:String>
+</ResourceDictionary>

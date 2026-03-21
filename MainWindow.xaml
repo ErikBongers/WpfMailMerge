@@ -12,7 +12,8 @@
         MinWidth="700" MinHeight="382"
         MaxWidth = "{Binding SystemParameters.MaximizedPrimaryScreenWidth}"
         MaxHeight = "{Binding SystemParameters.MaximizedPrimaryScreenHeight}"
-        Closing="Window_Closing">
+        Closing="Window_Closing" d:DesignHeight="481.73"
+        Background="AliceBlue">
     <Window.DataContext>
         <local:MailMergeViewModel/>
     </Window.DataContext>
@@ -20,15 +21,15 @@
         <cnv:BoolToColorBrushConverter x:Key="ColorConverter"></cnv:BoolToColorBrushConverter>
     </Window.Resources>
     <StackPanel Orientation="Vertical" Margin="10,10,10,20">
-        <GroupBox Header="Gegevens">
+        <GroupBox Header="{StaticResource Data}" Background="White">
             <StackPanel Orientation="Vertical" Margin="10">
                 <DockPanel LastChildFill="True">
-                    <Label x:Name="lblWordTemplate" Width="100" Content="Word template:" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
+                    <Label x:Name="lblWordTemplate" Width="100" Content="{StaticResource Word template}" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
                     <TextBox x:Name="txtWordTemplate" VerticalAlignment="Center"
                      Text="{Binding Path=WordTemplateFileName}"/>
                 </DockPanel>
                 <DockPanel LastChildFill="True">
-                    <Label x:Name="lblDataSource" Width="100" Content="Excel lijst:" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
+                    <Label x:Name="lblDataSource" Width="100" Content="{StaticResource Excel workbook}" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
                     <TextBox x:Name="txtDataSource" VerticalAlignment="Center"
                      Text="{Binding Path=DataSourceFileName}"/>
                 </DockPanel>
@@ -45,10 +46,10 @@
                 </DockPanel>
             </StackPanel>
         </GroupBox>
-        <GroupBox Header="E-mail">
+        <GroupBox Header="{StaticResource Email}" Background="White">
             <StackPanel Orientation="Vertical" Margin="10">
                 <DockPanel LastChildFill="True">
-                    <Label x:Name="lblSender" Content="Afzender:" HorizontalAlignment="Left" VerticalAlignment="Top" Width="100" HorizontalContentAlignment="Right"
+                    <Label x:Name="lblSender" Content="{StaticResource Sender:}" HorizontalAlignment="Left" VerticalAlignment="Top" Width="100" HorizontalContentAlignment="Right"
                        Visibility="{Binding SenderComboVisibility}"/>
                     <ComboBox x:Name="cmbNamedRange" VerticalAlignment="Center"
                               ItemsSource="{Binding Path=MailAccounts.Result}"
@@ -59,21 +60,30 @@
                               />
                 </DockPanel>
                 <DockPanel LastChildFill="True">
-                    <Label x:Name="lblOnBehalfOf" Content="In naam van:" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"/>
+                    <Label x:Name="lblOnBehalfOf" Content="{StaticResource On behalf of:}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"/>
                     <TextBox x:Name="txtOnBehalfOf" VerticalAlignment="Center"
                          Text="{Binding Path=OnBehalfOfEmail, Mode=TwoWay}"/>
                 </DockPanel>
                 <DockPanel LastChildFill="True">
-                    <Label Content="Ontvanger:" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"/>
-                    <CheckBox x:Name="chkUseTestRecipient" Content="Gebruik test email" VerticalAlignment="Center"
+                    <Label Content="{StaticResource Recipient:}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"/>
+                    <CheckBox x:Name="chkUseTestRecipient" Content="{StaticResource Use test address}" VerticalAlignment="Center"
                               IsChecked="{Binding Path=UseTestRecipient, Mode=TwoWay}"/>
                 </DockPanel>
                 <DockPanel LastChildFill="True">
-                    <Label Content="Test e-mail:" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"
+                    <Label Content="{StaticResource Test email:}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"
                            Visibility="{Binding Path=TestEmailVisibility}"/>
-                    <TextBox x:Name="txtRecipient" VerticalAlignment="Top"
+                    <TextBox x:Name="txtRecipient" VerticalAlignment="Center"
                          Text="{Binding Path=TestRecipient}"
                          Visibility="{Binding Path=TestEmailVisibility}"/>
+                </DockPanel>
+            </StackPanel>
+        </GroupBox>
+        <GroupBox Header="{StaticResource Start info}" Background="White">
+            <StackPanel Orientation="Vertical" Margin="10">
+                <DockPanel LastChildFill="False">
+                    <Label x:Name="lblStartIndex" Width="100" Content="{StaticResource Start at index:}" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
+                    <TextBox x:Name="txtStartIndex" VerticalAlignment="Center" Width="40"
+                        Text="{Binding Path=RequestedStartIndex}"/>
                 </DockPanel>
             </StackPanel>
         </GroupBox>

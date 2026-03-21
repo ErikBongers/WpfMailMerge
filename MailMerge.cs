@@ -20,10 +20,8 @@ internal class MailMerge
     ExcelDataSource? excelDataSource;
     private CancellationTokenSource? cancelToken;
 
-    public bool IsRunning {
-        get;
-        private set;
-        }
+    public bool IsRunning { get; private set; } = false;
+    public int RequestedStartIndex { get; internal set; } = 0;
 
     public MailMerge()
         {
@@ -98,9 +96,8 @@ internal class MailMerge
         }
         this.progressListener.ReportInfo("Preparing data..."); //todo: put in await Task.Run()
         var data = this.excelDataSource.GetData(settings.NamedRange);
-        data.Truncate(5); //todo: TEST!
+        data.Truncate(20); //todo: TEST!
         this.excelDataSource.CloseExcel();
-
 
         var channel = Channel.CreateUnbounded<string>();
 
@@ -110,9 +107,7 @@ internal class MailMerge
         var progressIndicator = new Progress<Progress.Status>((status) => this.ReportDocsProgress(status));
         cancelToken = new CancellationTokenSource();
         var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, channel.Reader, wordToEmail));
-        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer, wordToEmail));
-        
-
+        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer, wordToEmail, this.RequestedStartIndex));
 
         SetRunningState(false);
         }
@@ -146,7 +141,7 @@ internal class MailMerge
             }
         }
 
-    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelWriter<string> channelWriter, IWordToEmailStrategy wordToEmail)
+    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelWriter<string> channelWriter, IWordToEmailStrategy wordToEmail, int startIndex)
         {
         progress.Report(new Progress.Status("Checking template file..."));
         var docBuilder = new DocBuilder(settings.WordTemplateFileName, excelData, wordToEmail);
@@ -162,7 +157,7 @@ internal class MailMerge
 
         CreateRecoveryFile(settings);
 
-        for(int i = 1; i <excelData.Rows.Count; i++)
+        for (int i = startIndex; i < excelData.Rows.Count; i++)
             {
             string fileName = docBuilder.BuildDoc(i);
             if (!channelWriter.TryWrite(fileName))
