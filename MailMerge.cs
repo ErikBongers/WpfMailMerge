@@ -156,7 +156,7 @@ internal class MailMerge
 
         CreateRecoveryFile(settings);
 
-        for(int i = startIndex; i <excelData.Rows.Count; i++)
+        for (int i = startIndex; i < excelData.Rows.Count; i++)
             {
             string fileName = docBuilder.BuildDoc(i);
             if (!channelWriter.TryWrite(fileName))
