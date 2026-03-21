@@ -157,6 +157,8 @@ internal class MailMerge
             }
         progress.Report(new Progress.Status("Creating mail documents..."));
 
+        CreateRecoveryFile(settings);
+
         for(int i = 1; i <=excelData.Rows.Count; i++)
             {
             progress.Report(new Progress.Status(0, excelData.Rows.Count, i));
@@ -180,6 +182,14 @@ internal class MailMerge
                 }
             return cancelToken.IsCancellationRequested;
             }
+        }
+
+    private void CreateRecoveryFile(JsonSettings settings)
+        {
+        var templateDate = File.GetLastWriteTime(settings.WordTemplateFileName).ToString("O");
+        var dataDate = File.GetLastWriteTime(settings.DataSourceFileName).ToString("O");
+        JsonRecovery recovery = new() { TemplateDate = templateDate, DataDate = dataDate };
+        recovery.Save();
         }
 
     private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<string> channelReader, IWordToEmailStrategy wordToEmail)

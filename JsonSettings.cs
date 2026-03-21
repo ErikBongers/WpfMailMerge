@@ -1,7 +1,40 @@
 ﻿using System.ComponentModel;
 using System.IO;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 
 namespace WpfMailMerge;
+
+public static class JsonFile<T>
+    {
+    public static T Load(string baseFileName)
+        {
+        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string fileName = Path.Combine(localDir, Constants.APP_NAME, baseFileName);
+        string json = """{}""";
+        if (File.Exists(fileName))
+            json = File.ReadAllText(fileName);
+        return System.Text.Json.JsonSerializer.Deserialize<T>(json)!;
+        }
+
+    public static string CreateDirAndGetFileName(string fileName)
+        {
+        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string appDir = Path.Combine(localDir, Constants.APP_NAME);
+        if (!Directory.Exists(appDir))
+            Directory.CreateDirectory(appDir);
+        return Path.Combine(appDir, fileName);
+        }
+
+    public static void Save(T jsonObject, string baseFileName)
+        {
+        string settingsFile = JsonFile<JsonRecovery>.CreateDirAndGetFileName(baseFileName);
+        var options = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+        string json = System.Text.Json.JsonSerializer.Serialize(jsonObject, options);
+        File.WriteAllText(settingsFile, json);
+        }
+
+    }
 
 public class JsonSettings
     {
@@ -14,27 +47,33 @@ public class JsonSettings
     public string NamedRange { get; set; } = "";
     public int DelayAfterClipboardCopy { get; set; } = 500;
 
-    const string SETTINGS_FILENAME = "settings.json";
+    const string FILENAME = "settings.json";
 
-    public static JsonSettings LoadJsonSettings()
+    public static JsonSettings Load()
         {
-        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string settingsFile = Path.Combine(localDir, Constants.APP_NAME, SETTINGS_FILENAME);
-        string json = """{"WordTemplateFileName":"sdf"}""";
-        if (File.Exists(settingsFile))
-            json = File.ReadAllText(settingsFile);
-        JsonSettings settings = System.Text.Json.JsonSerializer.Deserialize<JsonSettings>(json)!;
-        return settings;
+        return JsonFile<JsonSettings>.Load(FILENAME);
         }
 
-    public void SaveJsonSettings()
+    public void Save()
         {
-        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string appDir = Path.Combine(localDir, Constants.APP_NAME);
-        if (!Directory.Exists(appDir))
-            Directory.CreateDirectory(appDir);
-        string settingsFile = Path.Combine(appDir, SETTINGS_FILENAME);
-        string json = System.Text.Json.JsonSerializer.Serialize(this);
-        File.WriteAllText(settingsFile, json);
+        JsonFile<JsonSettings>.Save(this, FILENAME);
+        }
+    }
+
+public class JsonRecovery
+    {
+    public string TemplateDate { get; set; } = "";
+    public string DataDate { get; set; } = "";
+
+    const string FILENAME = "recovery.json";
+
+    public static JsonRecovery Load()
+        {
+        return JsonFile<JsonRecovery>.Load(FILENAME);
+        }
+
+    public void Save()
+        {
+        JsonFile<JsonRecovery>.Save(this, FILENAME);
         }
     }

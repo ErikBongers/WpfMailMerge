@@ -253,7 +253,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
 
     public void LoadJsonSettings()
         {
-        var settings = JsonSettings.LoadJsonSettings();
+        var settings = JsonSettings.Load();
         this.WordTemplateFileName = settings.WordTemplateFileName;
         this.DataSourceFileName = settings.DataSourceFileName;
         this.UseTestRecipient = settings.UseTestRecipient;
@@ -266,7 +266,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
 
     public void SaveJsonSettings()
         {
-        ScrapeSettings().SaveJsonSettings();
+        ScrapeSettings().Save();
         }
 
     private JsonSettings ScrapeSettings()

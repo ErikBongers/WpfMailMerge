@@ -1,7 +1,6 @@
-* Check if all fields are replaced (on first doc? or before first doc?)
-
-* Why is "naam" column not found when the "Idx" column isn't present?
-  > check all fields have been replaced.
+* Create recovery file.
+  > outside Merged dir.
+  > dates of template and data files.
 
 Recovery
 ---------
