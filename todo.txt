@@ -1,3 +1,7 @@
+* 13 mails created, but 12 sent.
+  > status says 13 done.
+    > should be count of SENT thread, not the creation thread.
+
 * UI: options to recover:
   - start index
     > within bounds of data

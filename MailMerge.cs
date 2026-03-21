@@ -98,7 +98,7 @@ internal class MailMerge
         data.Truncate(20); //todo: TEST!
         this.excelDataSource.CloseExcel();
 
-        var channel = Channel.CreateUnbounded<string>();
+        var channel = Channel.CreateUnbounded<MailFileInfo>();
 
         //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
         IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
@@ -140,7 +140,7 @@ internal class MailMerge
             }
         }
 
-    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelWriter<string> channelWriter, IWordToEmailStrategy wordToEmail, int startIndex)
+    private void BuildTheDocs(JsonSettings settings, ExcelData excelData, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelWriter<MailFileInfo> channelWriter, IWordToEmailStrategy wordToEmail, int startIndex)
         {
         progress.Report(new Progress.Status("Checking template file..."));
         var docBuilder = new DocBuilder(settings.WordTemplateFileName, excelData, wordToEmail);
@@ -159,15 +159,13 @@ internal class MailMerge
         for (int i = startIndex; i < excelData.Rows.Count; i++)
             {
             string fileName = docBuilder.BuildDoc(i);
-            if (!channelWriter.TryWrite(fileName))
+            if (!channelWriter.TryWrite(new MailFileInfo { FileName = fileName, Index = i, Count = excelData.Rows.Count }))
                 {
                 throw new Exception("Can't write to channel.");
                 }
-            progress.Report(new Progress.Status(0, excelData.Rows.Count, i+1));
             if (CancelBuild()) 
                 return;
             }
-        progress.Report(new Progress.Status("Finished creating documents."));
         JsonRecovery.Delete();
         docBuilder.CloseAll();
 
@@ -190,22 +188,23 @@ internal class MailMerge
         recovery.Save();
         }
 
-    private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<string> channelReader, IWordToEmailStrategy wordToEmail)
+    private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<MailFileInfo> channelReader, IWordToEmailStrategy wordToEmail)
         {
         MailSender mailSender = new(settings, wordToEmail);
         mailSender.SetProgressObservable(progressListener);
         Debug.WriteLine("Waiting for mails to send...");
         while(true)
             {
-            string fileName = await channelReader.ReadAsync();
-            mailSender.SendOneMail(fileName);
+            MailFileInfo mailFileInfo = await channelReader.ReadAsync();
+            mailSender.SendOneMail(mailFileInfo.FileName);
+            progress.Report(new Progress.Status(0, mailFileInfo.Count, mailFileInfo.Index + 1));
             if (cancelToken.IsCancellationRequested)
                 {
                 mailSender.CloseAll();
                 break;
                 }
             }
-        Debug.WriteLine("SendMails ended.");
+        progress.Report(new Progress.Status("All mails have been sent."));
         }
 
     private bool PerformChecks(JsonSettings settings)
@@ -252,4 +251,11 @@ internal class DummyProgressObservable : IProgressObservable
     public void SetProgress(int value){}
     public void ReportError(string error){}
     public void ReportInfo(string info){}
+    }
+
+internal class MailFileInfo
+    {
+    public required string FileName;
+    public required int Index;
+    public required int Count;
     }
