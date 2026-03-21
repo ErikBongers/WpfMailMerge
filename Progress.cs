@@ -24,7 +24,7 @@ internal class Status
     private readonly object Data;
 
     public Status(string message) { StatusType = StatusType.Message; Data = message; }
-    public Status(string errorMessage, int errorCode) { StatusType = StatusType.Message; Data = new Error {message = errorMessage, code = errorCode }; }
+    public Status(string errorMessage, int errorCode) { StatusType = StatusType.Error; Data = new Error {message = errorMessage, code = errorCode }; }
 
     public Status(int startValue, int maxValue, int currentValue)
         {

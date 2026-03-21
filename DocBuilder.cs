@@ -55,6 +55,7 @@ internal class DocBuilder
     private DecoratedString? mailTo;
     private Word.Documents documents;
     private List<string> errors = [];
+    private HashSet<string> fieldNames;
     private readonly IWordToEmailStrategy wordToEmail;
 
     public DocBuilder(string templateDocPath, ExcelData excelData, IWordToEmailStrategy wordToEmail)
@@ -69,7 +70,8 @@ internal class DocBuilder
         if (!Directory.Exists(this.mergedDocsDir))
             Directory.CreateDirectory(this.mergedDocsDir);
         this.templateDocPath = Path.Combine(mailMergeTempDir, "template.docx");
-        this.templateDoc = CreateTemplateDoc();
+        this.templateDoc = this.documents.Add(this.sourceDocPath) ?? throw new Exception("Template doc not found.");
+        this.fieldNames = CreateTemplateDoc();
         }
 
     private List<int> GetMarkerIndices(Word.Document templateDoc, string startMarker, string endMarker, bool remove)
@@ -237,14 +239,17 @@ internal class DocBuilder
         return !hasErrors;
         }
 
-    private Word.Document CreateTemplateDoc()
+    private HashSet<string> CreateTemplateDoc()
         {
-        var doc = this.documents.Add(this.sourceDocPath) ?? throw new Exception("Template doc not found.");
         try
             {
-            foreach (Word.Range storyRange in doc.StoryRanges)
+            this.fieldNames = GetFieldNames();
+            var missingFields = this.fieldNames.Except(excelData.Headers).ToList();
+            if(missingFields.Count > 0)
+                this.errors.Add($"Missing field(s): {string.Join(", ", missingFields)}");
+            foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
                 {
-                for (int i = 1; i < excelData.Headers.Count; i++)
+                for (int i = 0; i < excelData.Headers.Count; i++)
                     {
                     string fieldName = excelData.Headers[i];
                     Word.Find find = storyRange.Find;
@@ -255,14 +260,14 @@ internal class DocBuilder
                 //find INSERT markers
                 }
             
-            CheckIncludedDocs(doc);
-            CheckAndRemoveAttachmentMarkers(doc);
-            CheckEmailMarkers(doc);
+            CheckIncludedDocs(this.templateDoc);
+            CheckAndRemoveAttachmentMarkers(this.templateDoc);
+            CheckEmailMarkers(this.templateDoc);
 
             //collect the ranges AFTER all modifications. This ensures that the ranges are correct.
-            foreach (Word.Range storyRange in doc.StoryRanges)
+            foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
                 {
-                for (int i = 1; i < excelData.Headers.Count; i++)
+                for (int i = 0; i < excelData.Headers.Count; i++)
                     {
                     Word.Range searchRange = storyRange.Duplicate;
                     while (true)
@@ -276,13 +281,13 @@ internal class DocBuilder
                         if (!found)
                             break;
                         var fieldRange = new FieldRangeDef { Start = searchRange.Start, End = searchRange.End, Index = i };
-                        fieldRanges.Add(fieldRange);
+                        this.fieldRanges.Add(fieldRange);
                         searchRange.Collapse(WdCollapseDirection.wdCollapseEnd);
                         }
                     }
                 }
-            fieldRanges = fieldRanges.OrderByDescending(fr => fr.Start).ToList();
-            return doc;
+            this.fieldRanges = this.fieldRanges.OrderByDescending(fr => fr.Start).ToList();
+            return this.fieldNames;
             }
         finally
             {
@@ -388,16 +393,43 @@ internal class DocBuilder
         return new Section { StartMarker = collapseRangeStart.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
         }
 
+
+    private HashSet<string> GetFieldNames()
+        {
+        HashSet<string> fieldNames = [];
+        foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
+            {
+            var text = storyRange.Text;
+            if (text is null)
+                return [];
+            int pos = 0;
+            while (true)
+                {
+                pos = text.IndexOf("{{", pos);
+                if (pos < 0)
+                    break;
+                pos += 2;
+                var endPos = text.IndexOf("}}", pos);
+                if (pos < 0)
+                    break;
+                fieldNames.Add(text.Substring(pos, endPos - pos));
+
+                pos += 2;//just to be safe.
+                }
+            }
+        return fieldNames;
+        }
+
     public void CloseAll()
         {
-        this.templateDoc.Close(false);
-        Marshal.FinalReleaseComObject(this.templateDoc);
         foreach (var doc in this.insertDocs.Values)
             {
             doc.Close();//todo: wrap in exception handler?
             Marshal.FinalReleaseComObject(doc);
             }
         this.insertDocs.Clear();
+        try { this.templateDoc.Close(false); } catch (Exception e) { Debug.WriteLine("Can't close DocBuilder.templateDoc."); Debug.WriteLine(e); }
+        Marshal.FinalReleaseComObject(this.templateDoc);
         Marshal.FinalReleaseComObject(this.documents);
         try { this.word.Quit(false); } catch (Exception) { } //word may already have been closed by the other thread.
         Marshal.FinalReleaseComObject(this.word);

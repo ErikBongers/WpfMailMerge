@@ -1,7 +1,3 @@
-* Avoid saving as docx when using RTF?
-
-* Keep template doc open in builder.
-
 * Check if all fields are replaced (on first doc? or before first doc?)
 
 * Why is "naam" column not found when the "Idx" column isn't present?
