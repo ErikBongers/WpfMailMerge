@@ -54,7 +54,7 @@ internal class WordCopyPaste : IWordToEmailStrategy
         {
         string sentFileName = Path.GetFileName(fileName);
         string path = Path.GetDirectoryName(fileName)!;
-        File.Move(fileName, Path.Combine(path, "sent_" + sentFileName));
+        File.Move(fileName, Path.Combine(path, Constants.SENT_FILE_PREFIX + sentFileName));
         }
 
     public string[] GetRecipients(OpaqueDoc doc)

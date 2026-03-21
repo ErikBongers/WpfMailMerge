@@ -8,5 +8,6 @@ public static class Constants
     public const string APP_NAME = "MailMerge";
     public const string MERGED_FILE_PREFIX = "Mail";
     public const string WAITING = "Waiting...";
+    public static string SENT_FILE_PREFIX = "sent_";
     }
 

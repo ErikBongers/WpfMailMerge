@@ -200,6 +200,16 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             this.mailMerge.RequestedStartIndex = this.requestedStartIndex-1; //convert to zero based.
             }
         }
+    public Visibility showRecoveredStartIndexMessage = Visibility.Hidden;
+    public Visibility ShowRecoveredStartIndexMessage
+        {
+        get { return showRecoveredStartIndexMessage; }
+        set
+            {
+            showRecoveredStartIndexMessage = value;
+            OnPropertyChanged(nameof(ShowRecoveredStartIndexMessage));
+            }
+        }
     #endregion
 
     private readonly MailMerge mailMerge = new();
@@ -212,6 +222,9 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         };
         mailMerge.RequestedStartIndexChanged += (_, _) => {
             this.RequestedStartIndex = this.mailMerge.RequestedStartIndex;
+        };
+        mailMerge.HasRecoveredStartIndexChanged += (_, _) => {
+            this.ShowRecoveredStartIndexMessage = this.mailMerge.HasRecoveredStartIndex ? Visibility.Visible : Visibility.Hidden;
         };
         LoadJsonSettings();
         mailAccounts = new NotifyTaskCompletion<List<MailAccount>>(LoadMailAccounts(), new List<MailAccount>([new MailAccount { DisplayName = "Loading...", Index = -1 }]));

@@ -20,6 +20,12 @@
     </Window.DataContext>
     <Window.Resources>
         <cnv:BoolToColorBrushConverter x:Key="ColorConverter"></cnv:BoolToColorBrushConverter>
+        <Style x:Key="RedBalloon" TargetType="Border">
+            <Setter Property="BorderBrush" Value="Salmon"/>
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Background" Value="Salmon"/>
+        </Style>
     </Window.Resources>
     <StackPanel Orientation="Vertical" Margin="10,10,10,20">
         <GroupBox Header="{StaticResource Data}" Background="White">
@@ -85,6 +91,11 @@
                     <Label x:Name="lblStartIndex" Width="100" Content="{StaticResource Start at index:}" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
                     <TextBox x:Name="txtStartIndex" VerticalAlignment="Center" Width="40"
                         Text="{Binding Path=RequestedStartIndex}"/>
+                    <Border Style="{StaticResource RedBalloon}" Margin="15,0,0,0" Visibility="{Binding Path=ShowRecoveredStartIndexMessage}">
+                        <Label x:Name="lblRecovery" Content="&lt;-- Recovered last position." HorizontalAlignment="Left" VerticalAlignment="Center" HorizontalContentAlignment="Left"
+                               Background="Transparent"
+                               Padding="10, 0"/>
+                    </Border>
                 </DockPanel>
             </StackPanel>
         </GroupBox>

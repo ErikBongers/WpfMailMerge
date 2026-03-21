@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using System.Windows;
 using Outlook = Microsoft.Office.Interop.Outlook;
@@ -9,10 +10,11 @@ using Word = Microsoft.Office.Interop.Word;
 
 namespace WpfMailMerge;
 
-internal class MailMerge
+internal partial class MailMerge
     {
     public event EventHandler? RunningStateChanged;
     public event EventHandler? RequestedStartIndexChanged;
+    public event EventHandler? HasRecoveredStartIndexChanged;
 
     private Outlook.Application? outlook;
 
@@ -24,6 +26,7 @@ internal class MailMerge
 
     public bool IsRunning { get; private set; } = false;
     public int RequestedStartIndex { get; internal set; } = 0;
+    public bool HasRecoveredStartIndex { get; private set; } = false;
 
     public JsonSettings settings;
 
@@ -81,10 +84,7 @@ internal class MailMerge
             {
             var answer = MessageBox.Show("Last task can be continued, but the template document has changed since then. Do you still want to continue the previous task?", "Mail merge recovery", MessageBoxButton.YesNo);
             if (answer == MessageBoxResult.Yes)
-                {
-
-                this.SetStartIndex(123);//todo: TEST
-                }
+                SetRecoveredStartIndex();
             return;
             }
         DateTime dataModifiedTime = File.GetLastWriteTime(this.settings.DataSourceFileName);
@@ -93,11 +93,30 @@ internal class MailMerge
             {
             var answer = MessageBox.Show("Last task can be continued, but the data file has changed since then. Do you still want to continue the previous task?", "Mail merge recovery", MessageBoxButton.YesNo);
             if (answer == MessageBoxResult.Yes)
-                {
-                this.SetStartIndex(123);//todo: TEST
-                }
+                SetRecoveredStartIndex();
             return;
             }
+        SetRecoveredStartIndex();
+        }
+
+    private bool SetRecoveredStartIndex()
+        {
+        var files = Directory.GetFiles(DocBuilder.MergedDocsDir, Constants.SENT_FILE_PREFIX + "*.*");
+        Array.Sort(files);
+        var lastFile = files.Last();
+        if (lastFile is null)
+            {
+            MessageBox.Show("Could not determine last file. Setting start position to 1.");
+            return false;
+            }
+        var index = RxFirstInt().Match(lastFile).Value;
+        if (index is null)
+            {
+            MessageBox.Show("Could not determine last file. Setting start position to 1.");
+            return false;
+            }
+        this.SetStartIndex(int.Parse(index) + 1 + 1, true); //add 1 to start with the next file, and 1 to convert to 1-based.
+        return true;
         }
 
     public ExcelDataSource SetExcelDataSource(string rangeName)
@@ -152,10 +171,12 @@ internal class MailMerge
         this.IsRunning = runningState;
         this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
     }
-    private void SetStartIndex(int startIndex)
+    private void SetStartIndex(int startIndex, bool recovered)
         {
         this.RequestedStartIndex = startIndex;
         this.RequestedStartIndexChanged?.Invoke(this, EventArgs.Empty);
+        this.HasRecoveredStartIndex = recovered;
+        this.HasRecoveredStartIndexChanged?.Invoke(this, EventArgs.Empty);
         }
 
     public void Stop()
@@ -284,6 +305,9 @@ internal class MailMerge
         {
         CloseAll();
         }
+
+    [GeneratedRegex(@"\d+")]
+    private static partial Regex RxFirstInt();
     }
 
 internal class DummyProgressObservable : IProgressObservable
