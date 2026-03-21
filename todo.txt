@@ -1,7 +1,17 @@
+* UI: options to recover:
+  - start index
+    > within bounds of data
+    > unlikely to be used, unless manually interruped
+      > in which case a stop point can be added to the recovery file.
+    > option always available.
+      > per initially hidden?
+  - recover
+
 * recovery
-  > rename sent files to sent_...
-  > Define a starting point
     - start generating file n and start sending file x
+      > first hard-coded
+        > Rename some files to have some sent and some just generated.
+      > get info from Merged dir content.
       > n is a number
       > x is a filename!
        > erm...where to get it?
