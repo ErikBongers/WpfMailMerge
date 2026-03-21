@@ -1,77 +1,33 @@
-* recovery
-  - check if recovery file present.
-  - compare file dates.
-    > msgbox: "Last task can be continued, but the {data file and/or template} have changed since then. Do you still want to continue the previous task?" Yes/No.
-  - find last sent (not last generated - too confusing).
-    > file "sent_*.*" > highest number.
-  - UI:
-    > prefill start index
-    > show a message next to it about recovery.
-      : "<-- Continue with last interrupted task?"
-
-
-* UI: options to recover:
-  - start index
-    > within bounds of data
-    > unlikely to be used, unless manually interruped
-      > in which case a stop point can be added to the recovery file.
-    > option always available.
-      > per initially hidden?
-  - recover
-
-* recovery
-    - start generating file n and start sending file x
-      > first hard-coded
-        > Rename some files to have some sent and some just generated.
-      > get info from Merged dir content.
-      > n is a number
-      > x is a filename!
-       > erm...where to get it?
-         > read from Merged?
-           > probably...
-    
-
-Recovery
----------
-* Save no crash:
-  > Rename file is fastest!
-    > two levels of data: the new file name could also be meaningfull:
-        : preparing_file2.docx
-        : sending_file2.docx
-        : sent_file2.docx
-    > this could happen in both threads: doc creation and sending.
-    > a recovery file can contain
-      - start time of last job
-      - name and system date of data file
-        > to ensure file hasn't been changed in between
-    > no recovery file means job completed.
-    > if a "preparing" file exists: that's where thread 1 ended. A "Sending" file for thread 2.
-    > to restart only sending: rename files back to original.
-      > thread 1 just channels the file names.
-
-
-
+* Data loader
+  - data is loaded from one file, either an Excel or a definition file.
+  > Build a wrapper (strategy) to load the data based on the file.
+    > When an excel is selected: a named range needs to be selected as well.
+      > this is loaded async.
+      > WHEN? is this loaded?
+        > user could be typing a file name...
+        > 
 
 Priorities
 ------------
-* Recovery
-  > start where stopped
-  > start where crashed
-  > start at any point (in master data)
 * UI for strategy:
   - Send html mail (attachments at top, flickering screen)
   - RTF: attachement at bottom (no flickering)
 
 
-
-
-
-
-
 Remove power query
 -------------------
 > Do we really need to join the data in XLS?
-> Sqlite in memory?
+  > Dko3Data and Excel info have to be merged.
+    > that's 2 sources of data!
+    > should MailMerge have 2 input fields?
+    > Have a datasource definition file with 
+      - named definitions for:
+        - "StudentTable": 
+          > type "Clipboard": wait for a keyword on first line...
+          > type "Url": wait for a filled string.
+        - "InfoVestigingen": type "Excel": file name + named range.
+        - ...
+      - Join definitions
 > Hashtables?
 > What is needed?
 - Dko3Data
@@ -86,6 +42,7 @@ Remove power query
   > append the extra row's field names to the original field names.
   > Only N:1 joins!!!
     > no duplicating master rows, please.
+
 
 
 Always a backup method
