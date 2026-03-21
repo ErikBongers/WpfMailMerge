@@ -13,7 +13,8 @@
         MaxWidth = "{Binding SystemParameters.MaximizedPrimaryScreenWidth}"
         MaxHeight = "{Binding SystemParameters.MaximizedPrimaryScreenHeight}"
         Closing="Window_Closing" d:DesignHeight="481.73"
-        Background="AliceBlue">
+        Background="AliceBlue"
+        Loaded="Window_Loaded">
     <Window.DataContext>
         <local:MailMergeViewModel/>
     </Window.DataContext>

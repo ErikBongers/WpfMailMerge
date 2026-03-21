@@ -1,6 +1,14 @@
-* 13 mails created, but 12 sent.
-  > status says 13 done.
-    > should be count of SENT thread, not the creation thread.
+* recovery
+  - check if recovery file present.
+  - compare file dates.
+    > msgbox: "Last task can be continued, but the {data file and/or template} have changed since then. Do you still want to continue the previous task?" Yes/No.
+  - find last sent (not last generated - too confusing).
+    > file "sent_*.*" > highest number.
+  - UI:
+    > prefill start index
+    > show a message next to it about recovery.
+      : "<-- Continue with last interrupted task?"
+
 
 * UI: options to recover:
   - start index

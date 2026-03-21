@@ -9,21 +9,34 @@ public static class JsonFile<T>
     {
     public static T Load(string baseFileName)
         {
-        string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string fileName = Path.Combine(localDir, Constants.APP_NAME, baseFileName);
+        string appDir = GetFullAppDirPath();
+        string fileName = Path.Combine(appDir, baseFileName);
         string json = """{}""";
         if (File.Exists(fileName))
             json = File.ReadAllText(fileName);
         return System.Text.Json.JsonSerializer.Deserialize<T>(json)!;
         }
 
-    public static string CreateDirAndGetFileName(string fileName)
+    private static string GetFullAppDirPath()
         {
         string localDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string appDir = Path.Combine(localDir, Constants.APP_NAME);
+        return Path.Combine(localDir, Constants.APP_NAME);
+        }
+
+    public static string CreateDirAndGetFileName(string fileName)
+        {
+        string appDir = GetFullAppDirPath();
         if (!Directory.Exists(appDir))
             Directory.CreateDirectory(appDir);
         return Path.Combine(appDir, fileName);
+        }
+
+    public static bool Exists(string fileName)
+        {
+        string appDir = GetFullAppDirPath();
+        if (!Directory.Exists(appDir))
+            return false;
+        return File.Exists(Path.Combine(appDir, fileName));
         }
 
     public static void Save(T jsonObject, string baseFileName)
@@ -70,6 +83,11 @@ public class JsonRecovery
     public static JsonRecovery Load()
         {
         return JsonFile<JsonRecovery>.Load(FILENAME);
+        }
+
+    public static bool Exists()
+        {
+        return JsonFile<JsonRecovery>.Exists(FILENAME);
         }
 
     public void Save()

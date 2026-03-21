@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -209,6 +210,9 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         mailMerge.RunningStateChanged += (_, _) => {
             this.IsRunning = this.mailMerge.IsRunning;
         };
+        mailMerge.RequestedStartIndexChanged += (_, _) => {
+            this.RequestedStartIndex = this.mailMerge.RequestedStartIndex;
+        };
         LoadJsonSettings();
         mailAccounts = new NotifyTaskCompletion<List<MailAccount>>(LoadMailAccounts(), new List<MailAccount>([new MailAccount { DisplayName = "Loading...", Index = -1 }]));
         mailAccounts.PropertyChanged += (s, e) =>
@@ -263,14 +267,13 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
 
     public void LoadJsonSettings()
         {
-        var settings = JsonSettings.Load();
-        this.WordTemplateFileName = settings.WordTemplateFileName;
-        this.DataSourceFileName = settings.DataSourceFileName;
-        this.UseTestRecipient = settings.UseTestRecipient;
-        this.TestRecipient = settings.TestRecipient;
-        this.savedMailAccountIndex = settings.MailAccountIndex;
+        this.WordTemplateFileName = this.mailMerge.settings.WordTemplateFileName;
+        this.DataSourceFileName = this.mailMerge.settings.DataSourceFileName;
+        this.UseTestRecipient = this.mailMerge.settings.UseTestRecipient;
+        this.TestRecipient = this.mailMerge.settings.TestRecipient;
+        this.savedMailAccountIndex = this.mailMerge.settings.MailAccountIndex;
         this.MailAccountIndex = -1; //until we can load the mail accounts.
-        this.savedNamedRange = settings.NamedRange ?? "";
+        this.savedNamedRange = this.mailMerge.settings.NamedRange ?? "";
         }
 
 
@@ -329,6 +332,11 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
     public void CloseAll()
         {
         this.mailMerge.CloseAll();
+        }
+
+    internal void CheckRecovery()
+        {
+        this.mailMerge.CheckRecovery();
         }
 
     ~MailMergeViewModel()

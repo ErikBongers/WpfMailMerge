@@ -25,4 +25,10 @@ public partial class MainWindow : Window
         mailMerge?.CloseAll();
         mailMerge?.SaveJsonSettings();
         }
+
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+        MailMergeViewModel? mailMergeViewModel = this.DataContext as MailMergeViewModel;
+        mailMergeViewModel?.CheckRecovery();
+        }
     }

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
@@ -11,6 +12,7 @@ namespace WpfMailMerge;
 internal class MailMerge
     {
     public event EventHandler? RunningStateChanged;
+    public event EventHandler? RequestedStartIndexChanged;
 
     private Outlook.Application? outlook;
 
@@ -23,9 +25,12 @@ internal class MailMerge
     public bool IsRunning { get; private set; } = false;
     public int RequestedStartIndex { get; internal set; } = 0;
 
+    public JsonSettings settings;
+
     public MailMerge()
         {
         this.progressListener = new DummyProgressObservable();
+        this.settings = JsonSettings.Load();
         }
 
     public void SetProgressObservable(IProgressObservable progressListener) => this.progressListener = progressListener;
@@ -62,6 +67,37 @@ internal class MailMerge
         GC.Collect();
         GC.WaitForPendingFinalizers();
         return accounts;
+        }
+
+    public void CheckRecovery()
+        {
+        if (!JsonRecovery.Exists())
+            return;
+
+        var jsonRecovery = JsonRecovery.Load();
+        DateTime templateModifiedTime = File.GetLastWriteTime(this.settings.WordTemplateFileName);
+        DateTime templateRecoveryTime = DateTime.ParseExact(jsonRecovery.TemplateDate, "O", CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind);
+        if (templateModifiedTime != templateRecoveryTime)
+            {
+            var answer = MessageBox.Show("Last task can be continued, but the template document has changed since then. Do you still want to continue the previous task?", "Mail merge recovery", MessageBoxButton.YesNo);
+            if (answer == MessageBoxResult.Yes)
+                {
+
+                this.SetStartIndex(123);//todo: TEST
+                }
+            return;
+            }
+        DateTime dataModifiedTime = File.GetLastWriteTime(this.settings.DataSourceFileName);
+        DateTime dataRecoveryTime = DateTime.ParseExact(jsonRecovery.DataDate, "O", CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind);
+        if (dataModifiedTime != dataRecoveryTime)
+            {
+            var answer = MessageBox.Show("Last task can be continued, but the data file has changed since then. Do you still want to continue the previous task?", "Mail merge recovery", MessageBoxButton.YesNo);
+            if (answer == MessageBoxResult.Yes)
+                {
+                this.SetStartIndex(123);//todo: TEST
+                }
+            return;
+            }
         }
 
     public ExcelDataSource SetExcelDataSource(string rangeName)
@@ -116,6 +152,11 @@ internal class MailMerge
         this.IsRunning = runningState;
         this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
     }
+    private void SetStartIndex(int startIndex)
+        {
+        this.RequestedStartIndex = startIndex;
+        this.RequestedStartIndexChanged?.Invoke(this, EventArgs.Empty);
+        }
 
     public void Stop()
         {
