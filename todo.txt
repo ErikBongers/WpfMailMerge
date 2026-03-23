@@ -1,3 +1,6 @@
+* How to UI fields get from the ViewModel to MailMerge????
+  > I'm doing something wrong...
+
 * disable UI fields while running.
   > for now: disable them forever. This way we don't have to reset all the variables and connections.
 

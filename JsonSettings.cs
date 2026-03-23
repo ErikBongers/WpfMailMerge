@@ -59,6 +59,7 @@ public class JsonSettings
     public string OnBehalfOfEmail { get; set; } = "";
     public string NamedRange { get; set; } = "";
     public int DelayAfterClipboardCopy { get; set; } = 500;
+    public bool MergeOtherExcels { get; set; } = false;
 
     const string FILENAME = "settings.json";
 

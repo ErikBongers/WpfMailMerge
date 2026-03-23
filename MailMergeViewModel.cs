@@ -207,12 +207,23 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             OnPropertyChanged(nameof(ShowRecoveredStartIndexMessage));
             }
         }
+    private bool mergeOtherExcels = false;
+    public bool MergeOtherExcels
+        {
+        get { return mergeOtherExcels; }
+        set
+            {
+            mergeOtherExcels = value;
+            OnPropertyChanged(nameof(MergeOtherExcels));
+            }
+        }
     #endregion
 
-    private readonly MailMerge mailMerge = new();
+    private readonly MailMerge mailMerge;
 
     public MailMergeViewModel()
         {
+        mailMerge = new(this);
         mailMerge.SetProgressObservable(this);
         mailMerge.RunningStateChanged += (_, _) => {
             this.IsRunning = this.mailMerge.IsRunning;
@@ -261,13 +272,14 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
 
     public void LoadJsonSettings()
         {
-        this.WordTemplateFileName = this.mailMerge.settings.WordTemplateFileName;
-        this.DataSourceFileName = this.mailMerge.settings.DataSourceFileName;
-        this.UseTestRecipient = this.mailMerge.settings.UseTestRecipient;
-        this.TestRecipient = this.mailMerge.settings.TestRecipient;
-        this.savedMailAccountIndex = this.mailMerge.settings.MailAccountIndex;
+        var settings = this.mailMerge.LoadSettings();
+        this.WordTemplateFileName = settings.WordTemplateFileName;
+        this.DataSourceFileName = settings.DataSourceFileName;
+        this.UseTestRecipient = settings.UseTestRecipient;
+        this.TestRecipient = settings.TestRecipient;
+        this.savedMailAccountIndex = settings.MailAccountIndex;
         this.MailAccountIndex = -1; //until we can load the mail accounts.
-        this.savedNamedRange = this.mailMerge.settings.NamedRange ?? "";
+        this.savedNamedRange = settings.NamedRange ?? "";
         }
 
 
@@ -276,7 +288,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         ScrapeSettings().Save();
         }
 
-    private JsonSettings ScrapeSettings()
+    public JsonSettings ScrapeSettings()
         {
         return new JsonSettings
             {

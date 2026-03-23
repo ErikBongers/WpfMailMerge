@@ -33,12 +33,12 @@ internal partial class MailMerge
     public bool HasRecoveredStartIndex { get; private set; } = false;
     public List<RangeDef> NamedRanges { get; private set; } = [new RangeDef {BookName="", Name="..", Range="",  RangeType = RangeType.Waiting }];
 
-    public JsonSettings settings;
+    private MailMergeViewModel viewModel;
 
-    public MailMerge()
+    public MailMerge(MailMergeViewModel viewModel)
         {
+        this.viewModel = viewModel;
         this.progressListener = new DummyProgressObservable();
-        this.settings = JsonSettings.Load();
         this.cancelToken = new CancellationTokenSource();
         this.progressIndicator = new Progress<Progress.Status>((status) => this.HandleThreadsProgress(status));
         this.excelChannel = Channel.CreateUnbounded<ExcelRequest>();
@@ -51,7 +51,7 @@ internal partial class MailMerge
 
     public void StartThreads()
         {
-        var _ = Task.Run(() => this.HandleExcelRequests(this.settings, this.cancelToken.Token, this.progressIndicator, excelChannel.Reader));
+        var _ = Task.Run(() => this.HandleExcelRequests(this.cancelToken.Token, this.progressIndicator, excelChannel.Reader));
         }
 
     private Outlook.Application GetOutlook()
@@ -94,7 +94,7 @@ internal partial class MailMerge
             return;
 
         var jsonRecovery = JsonRecovery.Load();
-        DateTime templateModifiedTime = File.GetLastWriteTime(this.settings.WordTemplateFileName);
+        DateTime templateModifiedTime = File.GetLastWriteTime(this.viewModel.WordTemplateFileName);
         DateTime templateRecoveryTime = DateTime.ParseExact(jsonRecovery.TemplateDate, "O", CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind);
         if (templateModifiedTime != templateRecoveryTime)
             {
@@ -103,7 +103,7 @@ internal partial class MailMerge
                 SetRecoveredStartIndex();
             return;
             }
-        DateTime dataModifiedTime = File.GetLastWriteTime(this.settings.DataSourceFileName);
+        DateTime dataModifiedTime = File.GetLastWriteTime(this.viewModel.DataSourceFileName);
         DateTime dataRecoveryTime = DateTime.ParseExact(jsonRecovery.DataDate, "O", CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind);
         if (dataModifiedTime != dataRecoveryTime)
             {
@@ -196,10 +196,10 @@ internal partial class MailMerge
                 data.Truncate(20); //todo: TEST!
 
                 //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
-                IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
+                IWordToEmailStrategy wordToEmail = new WordToRtfEmail();
 
-                var _ = Task.Run(() => this.SendMails(settings, progressIndicator, mailDocChannel.Reader, wordToEmail));
-                var __ = Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, mailDocChannel.Writer, wordToEmail, this.RequestedStartIndex));
+                var _ = Task.Run(() => this.SendMails(this.viewModel.ScrapeSettings(), progressIndicator, mailDocChannel.Reader, wordToEmail));
+                var __ = Task.Run(() => this.BuildTheDocs(this.viewModel.ScrapeSettings(), data, this.cancelToken.Token, progressIndicator, mailDocChannel.Writer, wordToEmail, this.RequestedStartIndex));
                 SetRunningState(false);
                 break;
             }
@@ -269,14 +269,14 @@ internal partial class MailMerge
                     progress.Report(new Progress.Status("All mails have been sent."));
                 }
             }
-        catch (ChannelClosedException e)
+        catch (ChannelClosedException)
             {
             Debug.WriteLine("Mail channel closed.");
             mailSender.CloseAll();
             }
         }
 
-    private async void HandleExcelRequests(JsonSettings settings, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<ExcelRequest> channelReader)
+    private async void HandleExcelRequests(CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<ExcelRequest> channelReader)
         {
         ExcelDataSource excelDataSource = new();
         excelDataSource.SetProgressObservable(progressListener);
@@ -295,7 +295,7 @@ internal partial class MailMerge
                         break;
                     case ExcelRequestType.Data:
                         var dataParams = request.GetDataParams();
-                        var data = excelDataSource.GetData(dataParams.filePath, dataParams.rangeName);
+                        var data = excelDataSource.GetData(dataParams.filePath, dataParams.rangeName, this.viewModel.MergeOtherExcels);
                         progress.Report(new Progress.Status(data));
                         break;
                     }
@@ -307,7 +307,7 @@ internal partial class MailMerge
                     }
                 }
             }        
-        catch (ChannelClosedException e)
+        catch (ChannelClosedException)
             {
             Debug.WriteLine("Excel channel closed.");
             excelDataSource.CloseAll();
@@ -363,6 +363,11 @@ internal partial class MailMerge
             ExcelRequest req = new ExcelRequest(new RangesParams(dataSourceFileName));
             this.excelChannel.Writer.TryWrite(req);
             }
+        }
+
+    internal JsonSettings LoadSettings()
+        {
+        return JsonSettings.Load();
         }
     }
 

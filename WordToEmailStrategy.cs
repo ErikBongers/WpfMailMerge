@@ -98,11 +98,9 @@ internal class WordCopyPaste : IWordToEmailStrategy
 
 internal class WordToRtfEmail : IWordToEmailStrategy
     {
-    private JsonSettings settings;
 
-    public WordToRtfEmail(JsonSettings settings)
+    public WordToRtfEmail()
         {
-        this.settings = settings;
         }
 
     public void SaveDoc(Document doc, string fullName)

@@ -29,7 +29,6 @@ internal class ExcelDataSource
     {
     private IProgressObservable progressListener;
 
-    public bool MergeOtherExcels;
     private Excel.Application excel;
     private List<RangeDef>? ranges;
     private Excel.Workbooks workbooks;
@@ -74,7 +73,7 @@ internal class ExcelDataSource
         return ranges;
         }
 
-    public ExcelData GetData(string filePath, string rangeName)
+    public ExcelData GetData(string filePath, string rangeName, bool mergeOtherExcels)
         {
         var ranges = this.GetRanges(filePath);
         var rangeDef = ranges.FirstOrDefault(r => r.DisplayName.Equals(rangeName));
