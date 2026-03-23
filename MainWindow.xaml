@@ -44,7 +44,7 @@
                     <Label x:Name="lblNamedRanges" Content="Data:" HorizontalAlignment="Left" VerticalAlignment="Top" Width="100" HorizontalContentAlignment="Right"
                        Visibility="{Binding NamedRangesComboVisibility}"/>
                     <ComboBox x:Name="cmbSenderAccount" VerticalAlignment="Center"
-                              ItemsSource="{Binding Path=NamedRanges.Result}"
+                              ItemsSource="{Binding Path=NamedRanges}"
                               SelectedValue="{Binding Path=SelectedNamedRange, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               SelectedValuePath="DisplayName"
                               DisplayMemberPath="DisplayName"

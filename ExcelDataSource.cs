@@ -1,6 +1,4 @@
-﻿using Microsoft.Office.Interop.Word;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace WpfMailMerge;
@@ -14,6 +12,7 @@ public enum RangeType
 
 public class RangeDef
     {
+    public required string BookName { get; set; }
     public required string Name { get; set; }
     public required string Range { get; set; }
     public required RangeType RangeType { get; set; }
@@ -28,69 +27,62 @@ public class RangeDef
 
 internal class ExcelDataSource
     {
-    private readonly string dataSourceFileName;
-    private readonly bool mergeOtherExcels;
-    private Excel.Application? excel;
-    private List<RangeDef>? ranges;
+    private IProgressObservable progressListener;
 
-    public ExcelDataSource(string dataSourceFileName, bool mergeOtherExcels)
+    public bool MergeOtherExcels;
+    private Excel.Application excel;
+    private List<RangeDef>? ranges;
+    private Excel.Workbooks workbooks;
+
+    public ExcelDataSource()
         {
-        this.dataSourceFileName = dataSourceFileName;
-        this.mergeOtherExcels = mergeOtherExcels;
+        this.excel = new Excel.Application();
+        this.workbooks = this.excel.Workbooks;
+        this.progressListener = new DummyProgressObservable();
         }
 
+    public void SetProgressObservable(IProgressObservable progressListener) => this.progressListener = progressListener;
     
-    public List<RangeDef> GetRanges()
+    public List<RangeDef> GetRanges(string fileName)
         {
         if(this.ranges != null)
             {
             return this.ranges;
             }
-        this.ranges = this.GetRangesForFile(this.dataSourceFileName);
+        this.ranges = this.GetRangesForFile(fileName);
         return this.ranges;
         }
     
     private List<RangeDef> GetRangesForFile(string filePath)
         {
-        OpenExcel();
         if (this.excel == null)
             {
             throw new InvalidOperationException("Excel application is not initialized.");
             }
-        var workbooks = excel.Workbooks; //todo: move to `this` level.
         var workBook = workbooks.Open(filePath);
         List<RangeDef> ranges = new List<RangeDef>();
         foreach (Excel.Worksheet workSheet in workBook.Worksheets)
             {
-            ranges.Add(new RangeDef { Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
+            ranges.Add(new RangeDef { BookName = filePath, Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
             foreach (Excel.ListObject excelTable in workSheet.ListObjects)
                 {
-                ranges.Add(new RangeDef { Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
+                ranges.Add(new RangeDef { BookName = filePath, Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
                 }
             }
         workBook.Close(false);
-        workbooks.Close();
         Marshal.FinalReleaseComObject(workBook);
-        Marshal.FinalReleaseComObject(workbooks);
         return ranges;
         }
 
-    public ExcelData GetData(string rangeName)
+    public ExcelData GetData(string filePath, string rangeName)
         {
-        if (this.ranges is null)
-            throw new ArgumentException("Ranges have not been set.");
-        var rangeDef = this.ranges.FirstOrDefault(r => r.DisplayName.Equals(rangeName));
+        var ranges = this.GetRanges(filePath);
+        var rangeDef = ranges.FirstOrDefault(r => r.DisplayName.Equals(rangeName));
         if (rangeDef == null)
             {
             throw new ArgumentException($"Range not found in Excel file.");
             }
-        OpenExcel();
-        if (this.excel == null)
-            {
-            throw new InvalidOperationException("Excel application is not initialized.");
-            }
-        var workbooks = excel.Workbooks;
-        var workBook = workbooks.Open(this.dataSourceFileName);
+        var workBook = this.workbooks.Open(rangeDef.BookName);
         var workSheets = workBook.Worksheets;
         Excel.Worksheet workSheet;
         Excel.Range range;
@@ -109,37 +101,24 @@ internal class ExcelDataSource
         Marshal.FinalReleaseComObject(workSheet);
         Marshal.FinalReleaseComObject(workSheets);
         workBook.Close(false);
-        workbooks.Close();
         Marshal.FinalReleaseComObject(workBook);
-        Marshal.FinalReleaseComObject(workbooks);
         workBook = null;
-        workbooks = null;
         return new ExcelData(data);
         }
 
-    private void OpenExcel()
+    public void CloseAll()
         {
-        if (this.excel == null)
-            {
-            this.excel = new Excel.Application();
-            }
-        }
-
-    public void CloseExcel()
-        {
-        if (this.excel is not null)
-            {
-            this.excel.Quit();
-            Marshal.FinalReleaseComObject(this.excel);
-            this.excel = null;
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            }
+        this.workbooks.Close();
+        Marshal.FinalReleaseComObject(this.workbooks);
+        this.excel.Quit();
+        Marshal.FinalReleaseComObject(this.excel);
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         }
 
     ~ExcelDataSource()
         {
-        this.CloseExcel();
+        this.CloseAll();
         }
     }
 

@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using System.Windows;
+using WpfMailMerge.Progress;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
 
@@ -15,18 +16,22 @@ internal partial class MailMerge
     public event EventHandler? RunningStateChanged;
     public event EventHandler? RequestedStartIndexChanged;
     public event EventHandler? HasRecoveredStartIndexChanged;
+    public event EventHandler? NamedRangesChanged;
 
     private Outlook.Application? outlook;
 
     private Dictionary<string, Word.Document> cachedWordDocs = new Dictionary<string, Word.Document>();
     const int batchLen = 20;
     private IProgressObservable progressListener;
-    ExcelDataSource? excelDataSource;
-    private CancellationTokenSource? cancelToken;
+    private CancellationTokenSource cancelToken;
+    private Progress<Status> progressIndicator;
+    private Channel<ExcelRequest> excelChannel;
+    private Channel<MailFileInfo> mailDocChannel;
 
     public bool IsRunning { get; private set; } = false;
     public int RequestedStartIndex { get; internal set; } = 0;
     public bool HasRecoveredStartIndex { get; private set; } = false;
+    public List<RangeDef> NamedRanges { get; private set; } = [new RangeDef {BookName="", Name="..", Range="",  RangeType = RangeType.Waiting }];
 
     public JsonSettings settings;
 
@@ -34,9 +39,20 @@ internal partial class MailMerge
         {
         this.progressListener = new DummyProgressObservable();
         this.settings = JsonSettings.Load();
+        this.cancelToken = new CancellationTokenSource();
+        this.progressIndicator = new Progress<Progress.Status>((status) => this.HandleThreadsProgress(status));
+        this.excelChannel = Channel.CreateUnbounded<ExcelRequest>();
+        this.mailDocChannel = Channel.CreateUnbounded<MailFileInfo>();
+
+        this.StartThreads();
         }
 
     public void SetProgressObservable(IProgressObservable progressListener) => this.progressListener = progressListener;
+
+    public void StartThreads()
+        {
+        var _ = Task.Run(() => this.HandleExcelRequests(this.settings, this.cancelToken.Token, this.progressIndicator, excelChannel.Reader));
+        }
 
     private Outlook.Application GetOutlook()
         {
@@ -119,13 +135,7 @@ internal partial class MailMerge
         return true;
         }
 
-    public ExcelDataSource SetExcelDataSource(string fileName)
-        {
-        this.excelDataSource = new ExcelDataSource(fileName, false);
-        return this.excelDataSource;
-        }
-
-    public async Task StartAsync(JsonSettings settings)
+    public void StartAsync(JsonSettings settings)
         {
         SetRunningState(true);
         if (!this.PerformChecks(settings))
@@ -138,32 +148,8 @@ internal partial class MailMerge
             SetRunningState(false);
             return;
         }
-        if (this.excelDataSource is null)
-        {
-            SetRunningState(false);
-            return;
-        }
-        if (this.excelDataSource is null)
-        {
-            SetRunningState(false);
-            return;
-        }
-        this.progressListener.ReportInfo("Preparing data..."); //todo: put in await Task.Run()
-        var data = this.excelDataSource.GetData(settings.NamedRange);
-        data.Truncate(20); //todo: TEST!
-        this.excelDataSource.CloseExcel();
-
-        var channel = Channel.CreateUnbounded<MailFileInfo>();
-
-        //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
-        IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
-
-        var progressIndicator = new Progress<Progress.Status>((status) => this.ReportDocsProgress(status));
-        cancelToken = new CancellationTokenSource();
-        var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, channel.Reader, wordToEmail));
-        await Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, channel.Writer, wordToEmail, this.RequestedStartIndex));
-
-        SetRunningState(false);
+        this.progressListener.ReportInfo("Preparing data...");
+        this.excelChannel.Writer.TryWrite(new ExcelRequest(new DataParams(settings.DataSourceFileName, settings.NamedRange)));
         }
 
     private void SetRunningState(bool runningState)
@@ -184,7 +170,7 @@ internal partial class MailMerge
         this.cancelToken?.Cancel();
         }
 
-    void ReportDocsProgress(Progress.Status status)
+    public void HandleThreadsProgress(Progress.Status status)
         {
         switch(status.StatusType)
             {
@@ -198,6 +184,23 @@ internal partial class MailMerge
             case Progress.StatusType.Error:
                 var error = status.GetError();
                 this.progressListener.ReportError(error.message);
+                break;
+            case Progress.StatusType.ExcelRanges:                ;
+                var ranges = status.GetExcelNamedRanges();
+                this.NamedRanges = ranges;
+                this.NamedRangesChanged?.Invoke(this, EventArgs.Empty);
+                break;
+            case Progress.StatusType.ExcelData:
+                var data = status.GetExcelData();
+                //assuming we pressed Start.
+                data.Truncate(20); //todo: TEST!
+
+                //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
+                IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
+
+                var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, mailDocChannel.Reader, wordToEmail));
+                var __ = Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, mailDocChannel.Writer, wordToEmail, this.RequestedStartIndex));
+                SetRunningState(false);
                 break;
             }
         }
@@ -255,18 +258,65 @@ internal partial class MailMerge
         MailSender mailSender = new(settings, wordToEmail);
         mailSender.SetProgressObservable(progressListener);
         Debug.WriteLine("Waiting for mails to send...");
-        while(true)
+        try
             {
-            MailFileInfo mailFileInfo = await channelReader.ReadAsync();
-            mailSender.SendOneMail(mailFileInfo.FileName);
-            progress.Report(new Progress.Status(0, mailFileInfo.Count, mailFileInfo.Index + 1));
-            if (cancelToken.IsCancellationRequested)
+            while (true)
                 {
-                mailSender.CloseAll();
-                break;
+                MailFileInfo mailFileInfo = await channelReader.ReadAsync();
+                mailSender.SendOneMail(mailFileInfo.FileName);
+                progress.Report(new Progress.Status(0, mailFileInfo.Count, mailFileInfo.Index + 1));
+                if (cancelToken.IsCancellationRequested)
+                    {
+                    mailSender.CloseAll();
+                    break;
+                    }
                 }
             }
+        catch (ChannelClosedException e)
+            {
+            Debug.WriteLine("Mail channel closed.");
+            mailSender.CloseAll();
+            }
         progress.Report(new Progress.Status("All mails have been sent."));
+        }
+
+    private async void HandleExcelRequests(JsonSettings settings, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<ExcelRequest> channelReader)
+        {
+        ExcelDataSource excelDataSource = new();
+        excelDataSource.SetProgressObservable(progressListener);
+        Debug.WriteLine("Waiting for excel requests...");
+        try
+            {
+            while (true)
+                {
+                ExcelRequest request = await channelReader.ReadAsync();
+                switch (request.requestType)
+                    {
+                    case ExcelRequestType.NamedRanges:
+                        var namedRangesParams = request.GetNamedRangesParams();
+                        var ranges = excelDataSource.GetRanges(namedRangesParams.filePath);
+                        progress.Report(new Progress.Status(ranges));
+                        break;
+                    case ExcelRequestType.Data:
+                        var dataParams = request.GetDataParams();
+                        var data = excelDataSource.GetData(dataParams.filePath, dataParams.rangeName);
+                        progress.Report(new Progress.Status(data));
+                        break;
+                    }
+
+                if (cancelToken.IsCancellationRequested)
+                    {
+                    excelDataSource.CloseAll();
+                    break;
+                    }
+                }
+            }        
+        catch (ChannelClosedException e)
+            {
+            Debug.WriteLine("Excel channel closed.");
+            excelDataSource.CloseAll();
+            }
+        Debug.WriteLine("Excel thread ended.");
         }
 
     private bool PerformChecks(JsonSettings settings)
@@ -298,7 +348,8 @@ internal partial class MailMerge
 
     public void CloseAll()
         {
-        this.excelDataSource?.CloseExcel();
+        this.excelChannel.Writer.Complete();
+        this.mailDocChannel.Writer.Complete();
         }
 
     ~MailMerge()
@@ -308,6 +359,15 @@ internal partial class MailMerge
 
     [GeneratedRegex(@"\d+")]
     private static partial Regex RxFirstInt();
+
+    internal void SetDataSourceFileName(string dataSourceFileName)
+        {
+        if(File.Exists(dataSourceFileName))
+            {
+            ExcelRequest req = new ExcelRequest(new RangesParams(dataSourceFileName));
+            this.excelChannel.Writer.TryWrite(req);
+            }
+        }
     }
 
 internal class DummyProgressObservable : IProgressObservable
@@ -323,4 +383,22 @@ internal class MailFileInfo
     public required string FileName;
     public required int Index;
     public required int Count;
+    }
+
+
+internal enum ExcelRequestType { NamedRanges, Data }
+
+internal record RangesParams(string filePath);
+internal record DataParams(string filePath, string rangeName);
+
+internal class ExcelRequest
+    {
+    public readonly ExcelRequestType requestType;
+    private readonly object Data;
+
+    public ExcelRequest(RangesParams rangesParams) { this.requestType = ExcelRequestType.NamedRanges; this.Data = rangesParams;}
+    public ExcelRequest(DataParams dataParams) { this.requestType = ExcelRequestType.Data; this.Data = dataParams;  }
+    
+    public RangesParams GetNamedRangesParams() { return (RangesParams) this.Data; }
+    public DataParams GetDataParams() { return (DataParams) this.Data; }
     }

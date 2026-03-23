@@ -1,9 +1,5 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
+﻿using System.ComponentModel;
 using System.Windows;
-using System.Windows.Threading;
 
 namespace WpfMailMerge;
 
@@ -78,8 +74,8 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         }
     private int savedMailAccountIndex;
 
-    public NotifyTaskCompletion<List<RangeDef>> namedRanges;
-    public NotifyTaskCompletion<List<RangeDef>> NamedRanges
+    public List<RangeDef> namedRanges = [new RangeDef { BookName= "", Name = "..", Range = "", RangeType = RangeType.Waiting }];
+    public List<RangeDef> NamedRanges
         {
         get { return namedRanges; }
         set
@@ -102,7 +98,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
 
     public Visibility NamedRangesComboVisibility
         {
-        get { return this.NamedRanges?.Result?.Count == 1 ? Visibility.Collapsed : Visibility.Visible; }
+        get { return this.NamedRanges.Count == 1 ? Visibility.Collapsed : Visibility.Visible; }
         }
     private string savedNamedRange = Constants.WAITING;
     private bool useTestRecipient = true;
@@ -151,6 +147,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             dataSourceFileName = value; 
             OnPropertyChanged(nameof(DataSourceFileName));
             OnPropertyChanged(nameof(CanStart));
+            this.mailMerge.SetDataSourceFileName(this.dataSourceFileName);
             }
         }
     private string onBehalfOfEmail = "academie.berchem.muziek.woord@stedelijkonderwijs.be";
@@ -226,6 +223,13 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         mailMerge.HasRecoveredStartIndexChanged += (_, _) => {
             this.ShowRecoveredStartIndexMessage = this.mailMerge.HasRecoveredStartIndex ? Visibility.Visible : Visibility.Hidden;
         };
+        mailMerge.NamedRangesChanged += (_, _) => {
+            this.NamedRanges = this.mailMerge.NamedRanges;
+            Task.Delay(10).ContinueWith(t =>
+                {
+                    this.SelectedNamedRange = this.savedNamedRange;
+                });
+        };
         LoadJsonSettings();
         mailAccounts = new NotifyTaskCompletion<List<MailAccount>>(LoadMailAccounts(), new List<MailAccount>([new MailAccount { DisplayName = "Loading...", Index = -1 }]));
         mailAccounts.PropertyChanged += (s, e) =>
@@ -248,34 +252,11 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
                 });
                 }
         };
-        namedRanges = new NotifyTaskCompletion<List<RangeDef>>(LoadDataSourceRanges(this.DataSourceFileName, this.mailMerge), new List<RangeDef>([new RangeDef{ Name = "..", Range="", RangeType=RangeType.Waiting }]));
-        namedRanges.PropertyChanged += (s, e) =>
-            {
-            if (e.PropertyName == nameof(NamedRanges.IsCompleted))
-                {
-                OnPropertyChanged(nameof(NamedRangesComboVisibility));
-                this.SelectedNamedRange = this.savedNamedRange;
-                Task.Delay(10).ContinueWith(t =>
-                    {
-                    this.SelectedNamedRange= this.savedNamedRange;
-                    });
-                }
-            };
         }
 
     private static Task<List<MailAccount>> LoadMailAccounts() //todo: can I remove the await and just return the tast from Task.Run()?
         {
         return Task.Run(() => MailMerge.GetSendersAsync());
-        }
-
-    private static Task<List<RangeDef>> LoadDataSourceRanges(string dataSourceFileName, MailMerge mailMerge)
-        {
-        return Task.Run(() =>
-            {
-                ExcelDataSource excelDataSource = mailMerge.SetExcelDataSource(dataSourceFileName);
-                return excelDataSource.GetRanges();
-                //return new List<RangeDef>([new RangeDef { Name = "..", Range = "", RangeType = RangeType.Waiting }, new RangeDef { Name = "sdfsd", Range = "", RangeType = RangeType.Waiting }]);
-            });
         }
 
     public void LoadJsonSettings()
@@ -309,13 +290,13 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             };
         }
 
-    public async Task StartStopAsync()
+    public void StartStop()
         {
         this.SaveJsonSettings();
         if (this.mailMerge.IsRunning)
             this.mailMerge.Stop();
         else
-            await this.mailMerge.StartAsync(ScrapeSettings());
+            this.mailMerge.StartAsync(ScrapeSettings());
         }
 
     public void ReportProgress(int value, int maxValue)

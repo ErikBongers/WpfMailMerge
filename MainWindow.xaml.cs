@@ -17,7 +17,7 @@ public partial class MainWindow : Window
     private void btnStartStop_Click(object sender, RoutedEventArgs e)
         {
         MailMergeViewModel? mailMergeViewModel = this.DataContext as MailMergeViewModel;
-        mailMergeViewModel?.StartStopAsync();
+        mailMergeViewModel?.StartStop();
         }
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
