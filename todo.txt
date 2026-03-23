@@ -1,3 +1,40 @@
+* Handshaking
+  - in DKO3, register local user from clipboard.
+  - and register it on cloud.
+    > where are cloud functions maintained?
+     - backupper
+     - mathparser!!!
+       > copy code to dko3 project?
+         NO!
+         make a private project on github to have some minimum security!
+
+* PRIO: allow filtering in DKO3 instead of all students.
+
+* Add a files path to UI and settings.
+  > This allows for included filenames without an absolute path.
+    > first try the absolute path, then use the specified dir.
+
+
+* Make pre-loading more robust.
+  > Timing !!!
+    > check if file path is valid
+      > this is currently NOT done!
+      > when? while typing?
+        > if so, async with a delay of .5 seconds?
+          > visual feedback if valid file (a checkmark next to the edit field)
+      > as long as not a valid  (Excel)
+        > cmb with named ranges should be in a "waiting..." state and disabled.
+
+    > if data def file:
+      > once valid (an event for this?): 
+        > start checking if content is valid.
+          > all files exist,...
+            > all excels contained the specified worksheets and/or ranges.
+          > if waiting for clipboard: start polling
+            > visual clue...
+
+
+
 * Data loader
   - data is loaded from one file, either an Excel or a definition file.
   > Build a wrapper (strategy) to load the data based on the file.
@@ -12,6 +49,25 @@ Priorities
 * UI for strategy:
   - Send html mail (attachments at top, flickering screen)
   - RTF: attachement at bottom (no flickering)
+
+
+Dko data transfer
+-------------------
+1. Handshaking
+  <machinename>.<username> is sent from an app (MailMerge) to clipboard.
+    > when?
+      > How does app know that DKO3 wants it?
+        1. cloud.isMachineRegistered(name), if yes: done!
+        2. if not,...
+          > when app starts "waiting for dko3 data. Please send the data from DKO3..."
+            a. set username to clipboard.
+            b. user goes to DKO3, which detects the clipboard username
+            c. DKO3 registeres the username.
+            d. DKO3 sends the data (from that username).
+2. Data transfer for know machine.
+  a. the app waits (polls) for cloud.GetWhateverData(machinename).
+    > if not yet available it receives nothing (empty string or HTTP code 204 "No content"?)
+
 
 
 Remove power query
