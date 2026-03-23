@@ -121,7 +121,7 @@ internal partial class MailMerge
 
     public ExcelDataSource SetExcelDataSource(string fileName)
         {
-        this.excelDataSource = new ExcelDataSource(fileName);
+        this.excelDataSource = new ExcelDataSource(fileName, false);
         return this.excelDataSource;
         }
 

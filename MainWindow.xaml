@@ -51,6 +51,12 @@
                               Visibility="{Binding NamedRangesComboVisibility}"
                               />
                 </DockPanel>
+                <DockPanel LastChildFill="True">
+                    <Label Content="{StaticResource Extra Data:}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="100" HorizontalContentAlignment="Right"/>
+                    <CheckBox x:Name="chkMergeOtherExcels" Content="{StaticResource Merge other Excel files in this directory}" VerticalAlignment="Center"
+                              IsChecked="{Binding Path=UseTestRecipient, Mode=TwoWay}"/>
+                </DockPanel>
+
             </StackPanel>
         </GroupBox>
         <GroupBox Header="{StaticResource Email}" Background="White">

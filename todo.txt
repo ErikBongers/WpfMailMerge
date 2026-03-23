@@ -1,3 +1,11 @@
+* Auto merge all source files.
+  > what about vestiging1, vestiging2,...?
+    > these names don't match.
+      > define an index:
+        > vestiging[1]
+          > one or zero based?
+            > one by default.
+
 * Handshaking
   - in DKO3, register local user from clipboard.
   - and register it on cloud.
@@ -7,8 +15,6 @@
        > copy code to dko3 project?
          NO!
          make a private project on github to have some minimum security!
-
-* PRIO: allow filtering in DKO3 instead of all students.
 
 * Add a files path to UI and settings.
   > This allows for included filenames without an absolute path.

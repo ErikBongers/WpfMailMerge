@@ -29,12 +29,14 @@ public class RangeDef
 internal class ExcelDataSource
     {
     private readonly string dataSourceFileName;
+    private readonly bool mergeOtherExcels;
     private Excel.Application? excel;
     private List<RangeDef>? ranges;
 
-    public ExcelDataSource(string dataSourceFileName)
+    public ExcelDataSource(string dataSourceFileName, bool mergeOtherExcels)
         {
         this.dataSourceFileName = dataSourceFileName;
+        this.mergeOtherExcels = mergeOtherExcels;
         }
 
     
@@ -44,14 +46,19 @@ internal class ExcelDataSource
             {
             return this.ranges;
             }
-
+        this.ranges = this.GetRangesForFile(this.dataSourceFileName);
+        return this.ranges;
+        }
+    
+    private List<RangeDef> GetRangesForFile(string filePath)
+        {
         OpenExcel();
         if (this.excel == null)
             {
             throw new InvalidOperationException("Excel application is not initialized.");
             }
-        var workbooks = excel.Workbooks;
-        var workBook = workbooks.Open(this.dataSourceFileName);
+        var workbooks = excel.Workbooks; //todo: move to `this` level.
+        var workBook = workbooks.Open(filePath);
         List<RangeDef> ranges = new List<RangeDef>();
         foreach (Excel.Worksheet workSheet in workBook.Worksheets)
             {
@@ -61,7 +68,6 @@ internal class ExcelDataSource
                 ranges.Add(new RangeDef { Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
                 }
             }
-        this.ranges = ranges;
         workBook.Close(false);
         workbooks.Close();
         Marshal.FinalReleaseComObject(workBook);

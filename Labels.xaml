@@ -12,4 +12,6 @@
     <system:String x:Key="Test email:">Test email:</system:String>
     <system:String x:Key="Start info">Start info</system:String>
     <system:String x:Key="Start at index:">Start at index:</system:String>
+    <system:String x:Key="Merge other Excel files in this directory">Merge other Excel files in this directory</system:String>
+    <system:String x:Key="Extra Data:">Extra Data:</system:String>
 </ResourceDictionary>
