@@ -296,7 +296,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         if (this.mailMerge.IsRunning)
             this.mailMerge.Stop();
         else
-            this.mailMerge.StartAsync(ScrapeSettings());
+            this.mailMerge.Start(ScrapeSettings());
         }
 
     public void ReportProgress(int value, int maxValue)

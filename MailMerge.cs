@@ -135,7 +135,7 @@ internal partial class MailMerge
         return true;
         }
 
-    public void StartAsync(JsonSettings settings)
+    public void Start(JsonSettings settings)
         {
         SetRunningState(true);
         if (!this.PerformChecks(settings))
@@ -198,7 +198,7 @@ internal partial class MailMerge
                 //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
                 IWordToEmailStrategy wordToEmail = new WordToRtfEmail(settings);
 
-                var _ = Task.Run(() => this.SendMails(settings, cancelToken.Token, progressIndicator, mailDocChannel.Reader, wordToEmail));
+                var _ = Task.Run(() => this.SendMails(settings, progressIndicator, mailDocChannel.Reader, wordToEmail));
                 var __ = Task.Run(() => this.BuildTheDocs(settings, data, this.cancelToken.Token, progressIndicator, mailDocChannel.Writer, wordToEmail, this.RequestedStartIndex));
                 SetRunningState(false);
                 break;
@@ -253,7 +253,7 @@ internal partial class MailMerge
         recovery.Save();
         }
 
-    private async void SendMails(JsonSettings settings, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<MailFileInfo> channelReader, IWordToEmailStrategy wordToEmail)
+    private async void SendMails(JsonSettings settings, IProgress<Progress.Status> progress, ChannelReader<MailFileInfo> channelReader, IWordToEmailStrategy wordToEmail)
         {
         MailSender mailSender = new(settings, wordToEmail);
         mailSender.SetProgressObservable(progressListener);
@@ -265,11 +265,8 @@ internal partial class MailMerge
                 MailFileInfo mailFileInfo = await channelReader.ReadAsync();
                 mailSender.SendOneMail(mailFileInfo.FileName);
                 progress.Report(new Progress.Status(0, mailFileInfo.Count, mailFileInfo.Index + 1));
-                if (cancelToken.IsCancellationRequested)
-                    {
-                    mailSender.CloseAll();
-                    break;
-                    }
+                if(mailFileInfo.Count == mailFileInfo.Index + 1)
+                    progress.Report(new Progress.Status("All mails have been sent."));
                 }
             }
         catch (ChannelClosedException e)
@@ -277,7 +274,6 @@ internal partial class MailMerge
             Debug.WriteLine("Mail channel closed.");
             mailSender.CloseAll();
             }
-        progress.Report(new Progress.Status("All mails have been sent."));
         }
 
     private async void HandleExcelRequests(JsonSettings settings, CancellationToken cancelToken, IProgress<Progress.Status> progress, ChannelReader<ExcelRequest> channelReader)
