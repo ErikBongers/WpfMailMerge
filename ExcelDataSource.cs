@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO;
+using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace WpfMailMerge;
@@ -75,6 +76,11 @@ internal class ExcelDataSource
 
     public ExcelData GetData(string filePath, string rangeName, bool mergeOtherExcels)
         {
+        return GetDataInternal(filePath, rangeName, mergeOtherExcels, null)!;
+        }
+
+    private ExcelData? GetDataInternal(string filePath, string rangeName, bool mergeOtherExcels, ExcelData? matchHeadersFor)
+        {
         var ranges = this.GetRanges(filePath);
         var rangeDef = ranges.FirstOrDefault(r => r.DisplayName.Equals(rangeName));
         if (rangeDef == null)
@@ -95,14 +101,48 @@ internal class ExcelDataSource
             workSheet = workBook.Worksheets[rangeDef.Name];
             range = workSheet.ListObjects[rangeDef.Name].Range;
             }
-        object[,] data = (object[,])range.Value2;
+        object[,]? data;
+        if (matchHeadersFor is not null)
+            data = GetMatchingData(range, matchHeadersFor);
+        else
+            data = (object[,])range.Value2;
         Marshal.FinalReleaseComObject(range);
         Marshal.FinalReleaseComObject(workSheet);
         Marshal.FinalReleaseComObject(workSheets);
         workBook.Close(false);
         Marshal.FinalReleaseComObject(workBook);
         workBook = null;
-        return new ExcelData(data);
+        if (data is null)
+            return null;
+        var excelData = new ExcelData(data, rangeDef);
+        //if (mergeOtherExcels)
+        //    this.MergeOtherFiles(excelData);
+        return excelData;
+        }
+
+    private object[,]? GetMatchingData(Excel.Range range, ExcelData matchHeadersFor)
+        {
+        //get first row and compare with headers.
+        Excel.Range firstRow = range.Rows.Item[1];
+        object[,] newHeaders = firstRow.Value2;
+        throw new NotImplementedException("todo....");
+        }
+
+    private void MergeOtherFiles(ExcelData masterData)
+        {
+        string? dir = Path.GetDirectoryName(masterData.rangeDef.BookName);
+        if (dir == null)
+            throw new NotImplementedException("TODO: handle relative paths");
+        var files = Directory.GetFiles(dir, "*.xls?");
+        files = files.Where(file => file != masterData.rangeDef.BookName).ToArray();
+        foreach (var file in files)
+            {
+            var ranges = this.GetRanges(file);
+            foreach(var range in ranges)
+                {
+                var dataToMerge = this.GetDataInternal(range.BookName, range.Name, false, masterData);
+                }
+            }
         }
 
     public void CloseAll()
@@ -127,13 +167,28 @@ public class ExcelData
     private List<string> headers = new List<string>();
     private List<List<string>> rows = new List<List<string>>();
     public List<List<string>> Rows => rows;
+    public readonly RangeDef rangeDef;
 
-    public ExcelData(object[,] data)
+    public ExcelData(object[,] data, RangeDef rangeDef)
         {
+        this.rangeDef = rangeDef;
+        this.headers = ExtractHeaderRow(data);
+        this.rows = ExtractBodyRows(data);
+        }
+
+    public static List<string> ExtractHeaderRow(object[,] data)
+        {
+        List<string> headers = new List<string>();
         for (int col = 1; col <= data.GetLength(1); col++)
             {
             headers.Add(data[1, col]?.ToString() ?? string.Empty);
             }
+        return headers;
+        }
+
+    public static List<List<string>> ExtractBodyRows(object[,] data)
+        {
+        List<List<string>> rows = new List<List<string>>();
         for (int row = 2; row <= data.GetLength(0); row++)
             {
             List<string> rowData = new List<string>();
@@ -143,6 +198,7 @@ public class ExcelData
                 }
             rows.Add(rowData);
             }
+        return rows;
         }
 
     public List<string> Headers => headers;

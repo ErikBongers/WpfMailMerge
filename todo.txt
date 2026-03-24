@@ -1,9 +1,17 @@
-* How to UI fields get from the ViewModel to MailMerge????
-  > I'm doing something wrong...
+Auto merge
+-----------
+- get dir
+- get all excels
+  > exclude master excel
+- get ranges
+- get their header rows
+- keep the ranges that have matching fields
+  > error/warning if more than 1 field matches.
+    > no merge on multiple columns yet.
 
-* disable UI fields while running.
-  > for now: disable them forever. This way we don't have to reset all the variables and connections.
 
+
+- get headers of 
 * Auto merge all source files.
   > what about vestiging1, vestiging2,...?
     > these names don't match.
@@ -11,6 +19,10 @@
         > vestiging[1]
           > one or zero based?
             > one by default.
+
+* disable UI fields while running.
+  > for now: disable them forever. This way we don't have to reset all the variables and connections.
+
 
 * Handshaking
   - in DKO3, register local user from clipboard.
