@@ -1,3 +1,18 @@
+* Linking data when a sheet contains a table: data gets added twice. Once for the sheet and once for the table.
+  > what's the rule here?
+  > This isn't an abnormal situation.
+  > If a sheet contains a table: this has prio. (it may contain additional data outside the table).
+    > show a warning?
+  > so...
+    > find a way to loop sheets, find a table: add it and move on, or add the whole sheet.
+      - start with the ranges
+      - get distinct sheets and loop them
+      - get table ranges
+        - if found: try add first table
+          > if fails: DON'T try to add a possible 2nd table! Only the first.
+        - if more than one: warning.
+      - if no table add the sheet.
+
 * When typing in excel path field:
   > don't check data until lost focus?
   > reset named ranges on lost focus.
