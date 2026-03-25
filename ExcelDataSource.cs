@@ -209,10 +209,33 @@ internal class ExcelDataSource
 
     private void MergeFiles(ExcelData masterData, LinkedExcelData linkedData)
         {
-        //Find all master fields to link
-        foreach(var row in masterData.Rows)
+        List<int> allMatchingKeyIndexes = [];
+        foreach(var header in masterData.Headers.Select((text, i) => new {text, i}))
             {
-            //todo: get linked row, if any, and add the fields, headername separated by a dot.
+            string baseHeader = RemoveIndexes(header.text);
+            if (baseHeader == linkedData.linkField)
+                allMatchingKeyIndexes.Add(header.i);
+            }
+        int linkedDataKeyIndex = linkedData.Headers.IndexOf(linkedData.linkField);
+        //Add the extra header columns, except the key field.
+        foreach (var masterIndex in allMatchingKeyIndexes)
+            {
+            var masterFieldName = masterData.Headers[masterIndex];
+            foreach (var linkedFieldName in linkedData.Headers)
+                if(linkedFieldName != linkedData.linkField)
+                    masterData.Headers.Add(masterFieldName + "." + linkedFieldName);
+            }
+        foreach (var row in masterData.Rows)
+            {
+            foreach (var masterIndex in allMatchingKeyIndexes)
+                {
+                var linkedRow = linkedData.GetRow(row[masterIndex]);
+                
+                for (int i = 0; i < linkedRow.Count; i++)
+                    if (i != linkedDataKeyIndex) //add fields except the key field.
+                        row.Add(linkedRow[i]);
+
+                }
             }
         }
 
@@ -285,11 +308,13 @@ class LinkedExcelData : ExcelData
     {
     public string linkField;
     private Dictionary<string, List<string>> dict = [];
+    private List<string> nullRow;
     public LinkedExcelData(object[,] data, RangeDef rangeDef, string linkField) 
         : base(data, rangeDef)
         {
         this.linkField = linkField;
         this.FillDictionary();
+        this.nullRow = this.headers.Select(h => "").ToList();
         }
     
     private void FillDictionary()
@@ -297,12 +322,14 @@ class LinkedExcelData : ExcelData
         int keyIndex = this.headers.IndexOf(this.linkField);
         foreach(var row in this.Rows)
             {
-            dict.Add(row[keyIndex], row);
+            dict.Add(row[keyIndex], row); //todo: may fail with duplicate key -> report error.
             }
         }
 
-    public List<string>? GetRow(string key)
+    public List<string> GetRow(string key)
         {
-        return this.dict[key];
+        if (this.dict.ContainsKey(key))
+            return this.dict[key];
+        return this.nullRow;
         }
     }
