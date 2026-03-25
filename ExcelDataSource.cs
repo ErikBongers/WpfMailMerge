@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections;
+using System.IO;
 using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -200,8 +201,6 @@ internal class ExcelDataSource
 
     private void MergeFiles(ExcelData masterData, LinkedExcelData otherData)
         {
-        if (otherData.linkField is null)
-            throw new Exception("todo: make this a compiler error: otherData should always have a linkField."); //class LinkedExcelData: ExcelData{...}
         //todo: Make hashtable inside LinkedExcelData
         foreach(var row in masterData.Rows)
             {
@@ -229,8 +228,8 @@ public record LinkedData(object[,] data, string linkField);
 
 public class ExcelData
     {
-    private List<string> headers = new List<string>();
-    private List<List<string>> rows = new List<List<string>>();
+    protected List<string> headers = new List<string>();
+    protected List<List<string>> rows = new List<List<string>>();
     public List<List<string>> Rows => rows;
     public readonly RangeDef rangeDef;
 
@@ -276,10 +275,26 @@ public class ExcelData
 
 class LinkedExcelData : ExcelData
     {
-    public string? linkField;
-    public LinkedExcelData(object[,] data, RangeDef rangeDef, string? linkField = null) 
+    public string linkField;
+    private Dictionary<string, List<string>> dict = [];
+    public LinkedExcelData(object[,] data, RangeDef rangeDef, string linkField) 
         : base(data, rangeDef)
         {
         this.linkField = linkField;
+        this.FillDictionary();
+        }
+    
+    private void FillDictionary()
+        {
+        int keyIndex = this.headers.IndexOf(this.linkField);
+        foreach(var row in this.Rows)
+            {
+            dict.Add(row[keyIndex], row);
+            }
+        }
+
+    public List<string>? GetRow(string key)
+        {
+        return this.dict[key];
         }
     }
