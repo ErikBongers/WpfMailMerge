@@ -103,7 +103,7 @@ internal class ExcelDataSource
         return rangeDef;
         }
 
-    private (Excel.Worksheet, Excel.Range) GetRangeFromDef(Excel.Workbook workBook, RangeDef rangeDef)
+    private Excel.Range GetRangeFromDef(Excel.Workbook workBook, RangeDef rangeDef)
         {
         Excel.Worksheet workSheet;
         Excel.Range range;
@@ -117,16 +117,16 @@ internal class ExcelDataSource
             workSheet = workBook.Worksheets[rangeDef.SheetName];
             range = workSheet.ListObjects[rangeDef.Name].Range;
             }
-        return (workSheet, range);
+        Marshal.FinalReleaseComObject(workSheet);
+        return range;
         }
 
     private ExcelData? GetDataInternalForWorkbook(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels, ExcelData? masterData)
         {
         var workSheets = workBook.Worksheets;
-        Excel.Worksheet workSheet;
         Excel.Range range;
         var rangeDef = GetRangeDefFromName(workBook, rangeName);
-        (workSheet, range) = GetRangeFromDef(workBook, rangeDef);
+        range = GetRangeFromDef(workBook, rangeDef);
         object[,]? data = null;
         string? linkField = null;
         if (masterData is not null)
@@ -141,7 +141,6 @@ internal class ExcelDataSource
         else
             data = (object[,])range.Value2;
         Marshal.FinalReleaseComObject(range);
-        Marshal.FinalReleaseComObject(workSheet);
         Marshal.FinalReleaseComObject(workSheets);
         if (data is null)
             return null;
