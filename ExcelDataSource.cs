@@ -43,34 +43,34 @@ internal class ExcelDataSource
 
     public void SetProgressObservable(IProgressObservable progressListener) => this.progressListener = progressListener;
     
-    public List<RangeDef> GetRanges(string fileName)
+    public List<RangeDef> GetRanges(string filePath)
         {
         if(this.ranges != null)
             {
             return this.ranges;
             }
-        this.ranges = this.GetRangesForFile(fileName);
-        return this.ranges;
-        }
-    
-    private List<RangeDef> GetRangesForFile(string filePath)
-        {
         if (this.excel == null)
             {
             throw new InvalidOperationException("Excel application is not initialized.");
             }
         var workBook = workbooks.Open(filePath);
+        this.ranges = this.GetRangesForWorkbook(workBook);
+        workBook.Close(false);
+        Marshal.FinalReleaseComObject(workBook);
+        return this.ranges;
+        }
+    
+    private List<RangeDef> GetRangesForWorkbook(Excel.Workbook workBook)
+        {
         List<RangeDef> ranges = new List<RangeDef>();
         foreach (Excel.Worksheet workSheet in workBook.Worksheets)
             {
-            ranges.Add(new RangeDef { BookName = filePath, Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
+            ranges.Add(new RangeDef { BookName = workBook.FullName, Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
             foreach (Excel.ListObject excelTable in workSheet.ListObjects)
                 {
-                ranges.Add(new RangeDef { BookName = filePath, Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
+                ranges.Add(new RangeDef { BookName = workBook.FullName, Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
                 }
             }
-        workBook.Close(false);
-        Marshal.FinalReleaseComObject(workBook);
         return ranges;
         }
 
@@ -79,15 +79,24 @@ internal class ExcelDataSource
         return GetDataInternal(filePath, rangeName, mergeOtherExcels, null)!;
         }
 
-    private ExcelData? GetDataInternal(string filePath, string rangeName, bool mergeOtherExcels, ExcelData? matchHeadersFor)
+    private ExcelData? GetDataInternal(string filePath, string rangeName, bool mergeOtherExcels, ExcelData? masterData)
         {
-        var ranges = this.GetRanges(filePath);
+        var workBook = this.workbooks.Open(filePath);
+        var excelData = GetDataInternalForWorkbook(workBook, rangeName, mergeOtherExcels, masterData);
+        workBook.Close(false);
+        Marshal.FinalReleaseComObject(workBook);
+        workBook = null;
+        return excelData;
+        }
+    
+    private ExcelData? GetDataInternalForWorkbook(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels, ExcelData? masterData)
+        {
+        var ranges = this.GetRangesForWorkbook(workBook);
         var rangeDef = ranges.FirstOrDefault(r => r.DisplayName.Equals(rangeName));
         if (rangeDef == null)
             {
             throw new ArgumentException($"Range not found in Excel file.");
             }
-        var workBook = this.workbooks.Open(rangeDef.BookName);
         var workSheets = workBook.Worksheets;
         Excel.Worksheet workSheet;
         Excel.Range range;
@@ -101,31 +110,58 @@ internal class ExcelDataSource
             workSheet = workBook.Worksheets[rangeDef.Name];
             range = workSheet.ListObjects[rangeDef.Name].Range;
             }
-        object[,]? data;
-        if (matchHeadersFor is not null)
-            data = GetMatchingData(range, matchHeadersFor);
+        object[,]? data = null;
+        string? linkField = null;
+        if (masterData is not null)
+            {
+            LinkedData? linkedData = GetMatchingData(range, masterData);
+            if (linkedData is not null)
+                {
+                data = linkedData.data;
+                linkField = linkedData.linkField;
+                }
+            }
         else
             data = (object[,])range.Value2;
         Marshal.FinalReleaseComObject(range);
         Marshal.FinalReleaseComObject(workSheet);
         Marshal.FinalReleaseComObject(workSheets);
-        workBook.Close(false);
-        Marshal.FinalReleaseComObject(workBook);
-        workBook = null;
         if (data is null)
             return null;
-        var excelData = new ExcelData(data, rangeDef);
-        //if (mergeOtherExcels)
-        //    this.MergeOtherFiles(excelData);
+        var excelData = new ExcelData(data, rangeDef, linkField);
+        if (mergeOtherExcels)
+            this.MergeOtherFiles(excelData);
         return excelData;
         }
 
-    private object[,]? GetMatchingData(Excel.Range range, ExcelData matchHeadersFor)
+    private LinkedData? GetMatchingData(Excel.Range range, ExcelData masterData)
         {
         //get first row and compare with headers.
         Excel.Range firstRow = range.Rows.Item[1];
         object[,] newHeaders = firstRow.Value2;
-        throw new NotImplementedException("todo....");
+        var newHeaderRow = ExcelData.ExtractHeaderRow(newHeaders);
+        var unIndexedMasterHeaders = UnIndexedMasterHeaders(masterData.Headers);
+        var matches = newHeaderRow.Intersect(unIndexedMasterHeaders).ToArray();
+        if (matches is null)
+            return null;
+        int linkCount = matches.Count();
+        if (linkCount > 1)
+            throw new Exception("TODO: propery report too many link fields.");
+
+        return new LinkedData((object[,])range.Value2, matches[0]);
+        }
+
+    private static List<string> UnIndexedMasterHeaders(IEnumerable<string> headers)
+        {
+        return headers.Select(h => RemoveIndexes(h)).ToList();
+        }
+
+    private static string RemoveIndexes(string text)
+        {
+        int openBracketPos = text.IndexOf('[');
+        if(openBracketPos >= 0)
+            return text[..openBracketPos];
+        return text;
         }
 
     private void MergeOtherFiles(ExcelData masterData)
@@ -137,11 +173,24 @@ internal class ExcelDataSource
         files = files.Where(file => file != masterData.rangeDef.BookName).ToArray();
         foreach (var file in files)
             {
-            var ranges = this.GetRanges(file);
+            var ranges = this.GetRanges(file); //todo: make a getRangesForWorkbook() and GetDataForWorkbook() to avoid opening/closing a workbook multiple times.
             foreach(var range in ranges)
                 {
                 var dataToMerge = this.GetDataInternal(range.BookName, range.Name, false, masterData);
+                if (dataToMerge is not null)
+                    this.MergeFiles(masterData, dataToMerge);
                 }
+            }
+        }
+
+    private void MergeFiles(ExcelData masterData, ExcelData otherData)
+        {
+        if (otherData.linkField is null)
+            throw new Exception("todo: make this a compiler error: otherData should always have a linkField."); //class LinkedExcelData: ExcelData{...}
+        //todo: Make hashtable inside LinkedExcelData
+        foreach(var row in masterData.Rows)
+            {
+            //todo: get linked row, if any, and add the fields, headername separated by a dot.
             }
         }
 
@@ -161,6 +210,7 @@ internal class ExcelDataSource
         }
     }
 
+public record LinkedData(object[,] data, string linkField);
 
 public class ExcelData
     {
@@ -168,10 +218,12 @@ public class ExcelData
     private List<List<string>> rows = new List<List<string>>();
     public List<List<string>> Rows => rows;
     public readonly RangeDef rangeDef;
+    public string? linkField;
 
-    public ExcelData(object[,] data, RangeDef rangeDef)
+    public ExcelData(object[,] data, RangeDef rangeDef, string? linkField = null)
         {
         this.rangeDef = rangeDef;
+        this.linkField = linkField;
         this.headers = ExtractHeaderRow(data);
         this.rows = ExtractBodyRows(data);
         }
