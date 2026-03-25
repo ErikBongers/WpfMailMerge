@@ -173,13 +173,17 @@ internal class ExcelDataSource
         files = files.Where(file => file != masterData.rangeDef.BookName).ToArray();
         foreach (var file in files)
             {
-            var ranges = this.GetRanges(file); //todo: make a getRangesForWorkbook() and GetDataForWorkbook() to avoid opening/closing a workbook multiple times.
+            var workBook = this.workbooks.Open(file);
+            var ranges = this.GetRangesForWorkbook(workBook);
             foreach(var range in ranges)
                 {
-                var dataToMerge = this.GetDataInternal(range.BookName, range.Name, false, masterData);
+                var dataToMerge = this.GetDataInternalForWorkbook(workBook, range.Name, false, masterData);
                 if (dataToMerge is not null)
                     this.MergeFiles(masterData, dataToMerge);
                 }
+            workBook.Close(false);
+            Marshal.FinalReleaseComObject(workBook);
+            workBook = null;
             }
         }
 
