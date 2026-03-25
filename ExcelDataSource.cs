@@ -123,7 +123,6 @@ internal class ExcelDataSource
 
     private ExcelData? GetDataInternalForWorkbook(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels, ExcelData? masterData)
         {
-        var workSheets = workBook.Worksheets;
         Excel.Range range;
         var rangeDef = GetRangeDefFromName(workBook, rangeName);
         range = GetRangeFromDef(workBook, rangeDef);
@@ -141,7 +140,6 @@ internal class ExcelDataSource
         else
             data = (object[,])range.Value2;
         Marshal.FinalReleaseComObject(range);
-        Marshal.FinalReleaseComObject(workSheets);
         if (data is null)
             return null;
         var excelData = new ExcelData(data, rangeDef, linkField);
