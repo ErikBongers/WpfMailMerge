@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using Microsoft.Office.Interop.Excel;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -14,6 +16,7 @@ public enum RangeType
 public class RangeDef
     {
     public required string BookName { get; set; }
+    public required string SheetName { get; set; }
     public required string Name { get; set; }
     public required string Range { get; set; }
     public required RangeType RangeType { get; set; }
@@ -65,10 +68,10 @@ internal class ExcelDataSource
         List<RangeDef> ranges = new List<RangeDef>();
         foreach (Excel.Worksheet workSheet in workBook.Worksheets)
             {
-            ranges.Add(new RangeDef { BookName = workBook.FullName, Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
+            ranges.Add(new RangeDef { BookName = workBook.FullName, SheetName = workSheet.Name, Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
             foreach (Excel.ListObject excelTable in workSheet.ListObjects)
                 {
-                ranges.Add(new RangeDef { BookName = workBook.FullName, Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
+                ranges.Add(new RangeDef { BookName = workBook.FullName, SheetName = workSheet.Name, Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
                 }
             }
         return ranges;
@@ -88,8 +91,8 @@ internal class ExcelDataSource
         workBook = null;
         return excelData;
         }
-    
-    private ExcelData? GetDataInternalForWorkbook(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels, ExcelData? masterData)
+
+    private RangeDef GetRangeDefFromName(Excel.Workbook workBook, string rangeName)
         {
         var ranges = this.GetRangesForWorkbook(workBook);
         var rangeDef = ranges.FirstOrDefault(r => r.DisplayName.Equals(rangeName));
@@ -97,19 +100,33 @@ internal class ExcelDataSource
             {
             throw new ArgumentException($"Range not found in Excel file.");
             }
-        var workSheets = workBook.Worksheets;
+        return rangeDef;
+        }
+
+    private (Excel.Worksheet, Excel.Range) GetRangeFromDef(Excel.Workbook workBook, RangeDef rangeDef)
+        {
         Excel.Worksheet workSheet;
         Excel.Range range;
         if (rangeDef.RangeType == RangeType.Sheet)
             {
-            workSheet = workSheets[rangeDef.Name];
+            workSheet = workBook.Worksheets[rangeDef.Name];
             range = workSheet.UsedRange;
             }
         else
             {
-            workSheet = workBook.Worksheets[rangeDef.Name];
+            workSheet = workBook.Worksheets[rangeDef.SheetName];
             range = workSheet.ListObjects[rangeDef.Name].Range;
             }
+        return (workSheet, range);
+        }
+
+    private ExcelData? GetDataInternalForWorkbook(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels, ExcelData? masterData)
+        {
+        var workSheets = workBook.Worksheets;
+        Excel.Worksheet workSheet;
+        Excel.Range range;
+        var rangeDef = GetRangeDefFromName(workBook, rangeName);
+        (workSheet, range) = GetRangeFromDef(workBook, rangeDef);
         object[,]? data = null;
         string? linkField = null;
         if (masterData is not null)

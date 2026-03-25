@@ -31,7 +31,7 @@ internal partial class MailMerge
     public bool IsRunning { get; private set; } = false;
     public int RequestedStartIndex { get; internal set; } = 0;
     public bool HasRecoveredStartIndex { get; private set; } = false;
-    public List<RangeDef> NamedRanges { get; private set; } = [new RangeDef {BookName="", Name="..", Range="",  RangeType = RangeType.Waiting }];
+    public List<RangeDef> NamedRanges { get; private set; } = [new RangeDef {BookName="", SheetName="", Name="..", Range="",  RangeType = RangeType.Waiting }];
 
     private MailMergeViewModel viewModel;
 

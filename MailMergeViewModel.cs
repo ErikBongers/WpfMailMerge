@@ -74,7 +74,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         }
     private int savedMailAccountIndex;
 
-    public List<RangeDef> namedRanges = [new RangeDef { BookName= "", Name = "..", Range = "", RangeType = RangeType.Waiting }];
+    public List<RangeDef> namedRanges = [new RangeDef { BookName= "", SheetName="", Name = "..", Range = "", RangeType = RangeType.Waiting }];
     public List<RangeDef> NamedRanges
         {
         get { return namedRanges; }
