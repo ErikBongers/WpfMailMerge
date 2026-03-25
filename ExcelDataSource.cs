@@ -85,7 +85,7 @@ internal class ExcelDataSource
     private ExcelData? GetDataInternal(string filePath, string rangeName, bool mergeOtherExcels, ExcelData? masterData)
         {
         var workBook = this.workbooks.Open(filePath);
-        var excelData = GetDataInternalForWorkbook(workBook, rangeName, mergeOtherExcels, masterData);
+        var excelData = GetMasterData(workBook, rangeName, mergeOtherExcels);
         workBook.Close(false);
         Marshal.FinalReleaseComObject(workBook);
         workBook = null;
@@ -117,34 +117,33 @@ internal class ExcelDataSource
             workSheet = workBook.Worksheets[rangeDef.SheetName];
             range = workSheet.ListObjects[rangeDef.Name].Range;
             }
+
         Marshal.FinalReleaseComObject(workSheet);
         return range;
         }
 
-    private ExcelData? GetDataInternalForWorkbook(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels, ExcelData? masterData)
+    private ExcelData? GetMasterData(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels)
         {
-        Excel.Range range;
         var rangeDef = GetRangeDefFromName(workBook, rangeName);
-        range = GetRangeFromDef(workBook, rangeDef);
-        object[,]? data = null;
+        Excel.Range range = GetRangeFromDef(workBook, rangeDef);
         string? linkField = null;
-        if (masterData is not null)
-            {
-            LinkedData? linkedData = GetMatchingData(range, masterData);
-            if (linkedData is not null)
-                {
-                data = linkedData.data;
-                linkField = linkedData.linkField;
-                }
-            }
-        else
-            data = (object[,])range.Value2;
+        object[,]? data = (object[,])range.Value2;
         Marshal.FinalReleaseComObject(range);
-        if (data is null)
-            return null;
         var excelData = new ExcelData(data, rangeDef, linkField);
         if (mergeOtherExcels)
             this.MergeOtherFiles(excelData);
+        return excelData;
+        }
+
+    private ExcelData? GetLinkedData(Excel.Workbook workBook, string rangeName, ExcelData masterData)
+        {
+        var rangeDef = GetRangeDefFromName(workBook, rangeName);
+        Excel.Range range = GetRangeFromDef(workBook, rangeDef);
+        LinkedData? linkedData = GetMatchingData(range, masterData);
+        Marshal.FinalReleaseComObject(range);
+        if (linkedData is null)
+            return null;
+        var excelData = new ExcelData(linkedData.data, rangeDef, linkedData.linkField);
         return excelData;
         }
 
@@ -191,7 +190,7 @@ internal class ExcelDataSource
             var ranges = this.GetRangesForWorkbook(workBook);
             foreach(var range in ranges)
                 {
-                var dataToMerge = this.GetDataInternalForWorkbook(workBook, range.Name, false, masterData);
+                var dataToMerge = this.GetLinkedData(workBook, range.Name, masterData);
                 if (dataToMerge is not null)
                     this.MergeFiles(masterData, dataToMerge);
                 }
