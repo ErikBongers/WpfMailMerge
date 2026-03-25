@@ -150,17 +150,24 @@ internal class ExcelDataSource
         {
         //get first row and compare with headers.
         Excel.Range firstRow = range.Rows.Item[1];
-        object[,] newHeaders = firstRow.Value2;
+        object[,] newHeaders;
+        if (firstRow.Columns.Count == 1){
+            // create new object[1,1] but 1-based
+            newHeaders = (Array.CreateInstance(typeof(object), new int[] { 1, 1 }, new int[] { 1, 1 }) as object[,])!;
+            newHeaders[1,1] = firstRow.Value2;
+            }
+        else
+            newHeaders = firstRow.Value2;
         var newHeaderRow = ExcelData.ExtractHeaderRow(newHeaders);
         var unIndexedMasterHeaders = UnIndexedMasterHeaders(masterData.Headers);
-        var matches = newHeaderRow.Intersect(unIndexedMasterHeaders).ToArray();
-        if (matches is null)
-            return null;
+        var matches = newHeaderRow.Intersect(unIndexedMasterHeaders);
         int linkCount = matches.Count();
+        if (linkCount == 0)
+            return null;
         if (linkCount > 1)
             throw new Exception("TODO: propery report too many link fields.");
 
-        return new LinkedData((object[,])range.Value2, matches[0]);
+        return new LinkedData((object[,])range.Value2, matches.First());
         }
 
     private static List<string> UnIndexedMasterHeaders(IEnumerable<string> headers)
@@ -183,14 +190,14 @@ internal class ExcelDataSource
             throw new NotImplementedException("TODO: handle relative paths");
         var files = Directory.GetFiles(dir, "*.xls?");
         files = files.Where(file => file != masterData.rangeDef.BookName).ToArray();
-        files = files.Where(file => !file.StartsWith('~')).ToArray();
+        files = files.Where(file => !Path.GetFileName(file).StartsWith('~')).ToArray();
         foreach (var file in files)
             {
             var workBook = this.workbooks.Open(file);
             var ranges = this.GetRangesForWorkbook(workBook);
             foreach(var range in ranges)
                 {
-                var dataToMerge = this.GetLinkedData(workBook, range.Name, masterData);
+                var dataToMerge = this.GetLinkedData(workBook, range.DisplayName, masterData);
                 if (dataToMerge is not null)
                     this.MergeFiles(masterData, dataToMerge);
                 }
