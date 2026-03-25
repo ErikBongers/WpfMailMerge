@@ -90,11 +90,12 @@ internal class DocBuilder
                     continue;
                 string indexStr = fieldMarker.Replace("{{", "").Replace("}}", "").Trim();
                 if (int.TryParse(indexStr, out int index))
-                    {
                     indices.Add(index);
-                    }
                 else
-                    throw new System.Exception($"Invalid {startMarker} field marker: {fieldMarker}");
+                    {
+                    this.errors.Add($"Invalid {startMarker} field marker: {fieldMarker}"); 
+                    //fall through...
+                    }
                 if (remove)
                     {
                     section.OuterRange.Delete();
