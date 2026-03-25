@@ -280,6 +280,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         this.savedMailAccountIndex = settings.MailAccountIndex;
         this.MailAccountIndex = -1; //until we can load the mail accounts.
         this.savedNamedRange = settings.NamedRange ?? "";
+        this.MergeOtherExcels = settings.MergeOtherExcels;
         }
 
 
@@ -298,7 +299,8 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             TestRecipient = this.TestRecipient,
             MailAccountIndex = this.MailAccountIndex,
             OnBehalfOfEmail = this.OnBehalfOfEmail,
-            NamedRange = this.SelectedNamedRange
+            NamedRange = this.SelectedNamedRange,
+            MergeOtherExcels = this.MergeOtherExcels
             };
         }
 

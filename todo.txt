@@ -1,3 +1,7 @@
+* When typing in excel path field:
+  > don't check data until lost focus?
+  > reset named ranges on lost focus.
+
 Auto merge
 -----------
 - get dir

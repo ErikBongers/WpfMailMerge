@@ -183,6 +183,7 @@ internal class ExcelDataSource
             throw new NotImplementedException("TODO: handle relative paths");
         var files = Directory.GetFiles(dir, "*.xls?");
         files = files.Where(file => file != masterData.rangeDef.BookName).ToArray();
+        files = files.Where(file => !file.StartsWith('~')).ToArray();
         foreach (var file in files)
             {
             var workBook = this.workbooks.Open(file);
@@ -199,9 +200,9 @@ internal class ExcelDataSource
             }
         }
 
-    private void MergeFiles(ExcelData masterData, LinkedExcelData otherData)
+    private void MergeFiles(ExcelData masterData, LinkedExcelData linkedData)
         {
-        //todo: Make hashtable inside LinkedExcelData
+        //Find all master fields to link
         foreach(var row in masterData.Rows)
             {
             //todo: get linked row, if any, and add the fields, headername separated by a dot.
