@@ -1,6 +1,4 @@
-﻿using Microsoft.Office.Interop.Excel;
-using System.Diagnostics;
-using System.IO;
+﻿using System.IO;
 using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -122,7 +120,7 @@ internal class ExcelDataSource
         return range;
         }
 
-    private ExcelData? GetMasterData(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels)
+    private ExcelData GetMasterData(Excel.Workbook workBook, string rangeName, bool mergeOtherExcels)
         {
         var rangeDef = GetRangeDefFromName(workBook, rangeName);
         Excel.Range range = GetRangeFromDef(workBook, rangeDef);
@@ -135,7 +133,7 @@ internal class ExcelDataSource
         return excelData;
         }
 
-    private ExcelData? GetLinkedData(Excel.Workbook workBook, string rangeName, ExcelData masterData)
+    private LinkedExcelData? GetLinkedData(Excel.Workbook workBook, string rangeName, ExcelData masterData)
         {
         var rangeDef = GetRangeDefFromName(workBook, rangeName);
         Excel.Range range = GetRangeFromDef(workBook, rangeDef);
@@ -143,7 +141,7 @@ internal class ExcelDataSource
         Marshal.FinalReleaseComObject(range);
         if (linkedData is null)
             return null;
-        var excelData = new ExcelData(linkedData.data, rangeDef, linkedData.linkField);
+        var excelData = new LinkedExcelData(linkedData.data, rangeDef, linkedData.linkField);
         return excelData;
         }
 
@@ -200,7 +198,7 @@ internal class ExcelDataSource
             }
         }
 
-    private void MergeFiles(ExcelData masterData, ExcelData otherData)
+    private void MergeFiles(ExcelData masterData, LinkedExcelData otherData)
         {
         if (otherData.linkField is null)
             throw new Exception("todo: make this a compiler error: otherData should always have a linkField."); //class LinkedExcelData: ExcelData{...}
@@ -235,12 +233,10 @@ public class ExcelData
     private List<List<string>> rows = new List<List<string>>();
     public List<List<string>> Rows => rows;
     public readonly RangeDef rangeDef;
-    public string? linkField;
 
     public ExcelData(object[,] data, RangeDef rangeDef, string? linkField = null)
         {
         this.rangeDef = rangeDef;
-        this.linkField = linkField;
         this.headers = ExtractHeaderRow(data);
         this.rows = ExtractBodyRows(data);
         }
@@ -275,5 +271,15 @@ public class ExcelData
     public void Truncate(int max)
         {
         this.rows = this.rows.Take(max).ToList();
+        }
+    }
+
+class LinkedExcelData : ExcelData
+    {
+    public string? linkField;
+    public LinkedExcelData(object[,] data, RangeDef rangeDef, string? linkField = null) 
+        : base(data, rangeDef)
+        {
+        this.linkField = linkField;
         }
     }
