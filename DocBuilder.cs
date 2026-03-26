@@ -170,10 +170,19 @@ internal class DocBuilder
         List<string> includedFilePaths = GetUniqueColumnValues(includedIndices);
         foreach (string originalFilePath in includedFilePaths)
             {
-            if (!File.Exists(originalFilePath))
-                this.errors.Add($"File to include not found: {originalFilePath}");
-            else
-                insertDocs[originalFilePath] = new DocDef(originalFilePath, this.documents.Open(originalFilePath, Visible: false));
+            string generatedPath = originalFilePath;
+            if (!File.Exists(generatedPath))
+                {
+                var dataDir = this.excelData.GetDataDir();
+                generatedPath = Path.Combine(dataDir, originalFilePath);
+                if (!File.Exists(generatedPath))
+                    {
+                    // if all attempts failed:
+                    this.errors.Add($"File to include not found: {originalFilePath}");
+                    continue;
+                    }
+                }
+            insertDocs[originalFilePath] = new DocDef(generatedPath, this.documents.Open(generatedPath, Visible: false));
             }
         }
 

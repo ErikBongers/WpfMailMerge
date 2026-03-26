@@ -304,6 +304,17 @@ public class ExcelData
         this.rows = ExtractBodyRows(data);
         }
 
+    public string GetDataDir()
+    {
+        string fullPath = Path.GetFullPath(this.rangeDef.BookName);
+        string? dir = Path.GetDirectoryName(fullPath);
+        if (dir == null)
+        {
+            throw new Exception($"Can't find base directory for Workbook {this.rangeDef.BookName}");
+        }
+        return dir;
+    }
+
     public static List<string> ExtractHeaderRow(object[,] data)
         {
         List<string> headers = new List<string>();
