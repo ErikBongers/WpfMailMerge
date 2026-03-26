@@ -35,6 +35,7 @@ internal class ExcelDataSource
     private Excel.Application excel;
     private List<RangeDef>? ranges;
     private Excel.Workbooks workbooks;
+    public List<string> warnings = [];
 
     public ExcelDataSource()
         {
@@ -74,6 +75,25 @@ internal class ExcelDataSource
                 }
             }
         return ranges;
+        }
+    
+    private (List<RangeDef>, List<string>) GetFirstRangesForWorkbook(Excel.Workbook workBook)
+        {
+        List<string> warnings = [];
+        List<RangeDef> ranges = new List<RangeDef>();
+        foreach (Excel.Worksheet workSheet in workBook.Worksheets)
+            {
+            if (workSheet.ListObjects.Count > 1)
+                warnings.Add($"Warning: {workBook}: sheet \"{workSheet.Name}\" has more than one table (or named range). Only the first is considered for linking.");
+            if (workSheet.ListObjects.Count == 1){
+                var excelTable = workSheet.ListObjects[1];
+                ranges.Add(new RangeDef { BookName = workBook.FullName, SheetName = workSheet.Name, Name = excelTable.Name, Range = excelTable.Range.Address, RangeType = RangeType.Table });
+                Marshal.FinalReleaseComObject(excelTable);
+                }
+            else
+                ranges.Add(new RangeDef { BookName = workBook.FullName, SheetName = workSheet.Name, Name = workSheet.Name, Range = workSheet.UsedRange.Address, RangeType = RangeType.Sheet });
+            }
+        return (ranges, warnings);
         }
 
     public ExcelData GetData(string filePath, string rangeName, bool mergeOtherExcels)
@@ -194,12 +214,15 @@ internal class ExcelDataSource
         foreach (var file in files)
             {
             var workBook = this.workbooks.Open(file);
-            var ranges = this.GetRangesForWorkbook(workBook);
+            var (ranges, newWarnings) = this.GetFirstRangesForWorkbook(workBook);
             foreach(var range in ranges)
                 {
                 var dataToMerge = this.GetLinkedData(workBook, range.DisplayName, masterData);
                 if (dataToMerge is not null)
+                    {
                     this.MergeFiles(masterData, dataToMerge);
+                    this.warnings = this.warnings.Concat(newWarnings).Where(w => w.Contains($"\"{range.Name}\"")).ToList(); //adding only warnings for the relavant sheet. todo: Assuming sheetname is between double quotes. Create a SheetWarning record.
+                    }
                 }
             workBook.Close(false);
             Marshal.FinalReleaseComObject(workBook);
