@@ -28,7 +28,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             this.PropertyChanged(this, new PropertyChangedEventArgs(propName));
         }
 
-    private string statusMessage = "<Status message>";
+    private string statusMessage = "";
     public string StatusMessage
         {
         get { return statusMessage; }
@@ -46,7 +46,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         get { return progressMaxValue; }
         set { progressMaxValue = value; OnPropertyChanged(nameof(ProgressMaxValue)); }
         }
-    private string progressInfo = "<Progress info>";
+    private string progressInfo = "";
     public string ProgressInfo
         {
         get { return progressInfo; }
@@ -224,6 +224,36 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         }
     public bool IsDocPathValid { get { return IsFileOfType(this.WordTemplateFileName,[".docx", ".docm"]); } }
     public bool IsDataPathValid { get { return IsFileOfType(this.DataSourceFileName, [".xlsx", ".xlsm"]); } }
+    private string warnings = "";
+    public string Warnings
+        {
+        get { return this.warnings; }
+        set
+            {
+            this.warnings = value;
+            OnPropertyChanged(nameof(Warnings));
+            OnPropertyChanged(nameof(WarningVisibility));
+            }
+        }
+    private string errors = "";
+    public string Errors
+        {
+        get { return this.errors; }
+        set
+            {
+            this.errors = value;
+            OnPropertyChanged(nameof(Errors));
+            OnPropertyChanged(nameof(ErrorsVisibility));
+            }
+        }
+    public Visibility WarningVisibility
+        {
+        get { return this.Warnings == "" ? Visibility.Collapsed : Visibility.Visible; }
+        }
+    public Visibility ErrorsVisibility
+        {
+        get { return this.Errors == "" ? Visibility.Collapsed : Visibility.Visible; }
+        }
     #endregion
 
     private bool IsFileOfType(string filePath, IEnumerable<string> extensions)
@@ -254,7 +284,22 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             this.NamedRanges = this.mailMerge.NamedRanges;
             Task.Delay(10).ContinueWith(t =>
                 {
-                    this.SelectedNamedRange = this.savedNamedRange;
+                    if (namedRanges.Count == 1)
+                        {
+                        SelectedNamedRange = namedRanges[0].DisplayName;
+                        return;
+                        }
+                    if (namedRanges.Exists(r => r.DisplayName == this.SelectedNamedRange))
+                        {
+                        return;
+                        }
+                    if (namedRanges.Exists(r => r.DisplayName == this.savedNamedRange))
+                        {
+                        this.SelectedNamedRange = this.savedNamedRange;
+                        return;
+                        }
+                    
+                    this.SelectedNamedRange = "";
                 });
         };
         LoadJsonSettings();
@@ -326,7 +371,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         if (this.mailMerge.IsRunning)
             this.mailMerge.Stop();
         else
-            this.mailMerge.Start(ScrapeSettings());
+            this.mailMerge.Start();
         }
 
     public void ReportProgress(int value, int maxValue)

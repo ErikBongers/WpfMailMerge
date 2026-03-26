@@ -36,6 +36,7 @@ internal class ExcelDataSource
     private List<RangeDef>? ranges;
     private Excel.Workbooks workbooks;
     public List<string> warnings = [];
+    public List<string> errors = [];
 
     public ExcelDataSource()
         {
@@ -145,10 +146,9 @@ internal class ExcelDataSource
         {
         var rangeDef = GetRangeDefFromName(workBook, rangeName);
         Excel.Range range = GetRangeFromDef(workBook, rangeDef);
-        string? linkField = null;
         object[,]? data = (object[,])range.Value2;
         Marshal.FinalReleaseComObject(range);
-        var excelData = new ExcelData(data, rangeDef, linkField);
+        var excelData = new ExcelData(data, rangeDef, this.warnings, this.errors);
         if (mergeOtherExcels)
             this.MergeOtherFiles(excelData);
         return excelData;
@@ -158,15 +158,17 @@ internal class ExcelDataSource
         {
         var rangeDef = GetRangeDefFromName(workBook, rangeName);
         Excel.Range range = GetRangeFromDef(workBook, rangeDef);
-        LinkedData? linkedData = GetMatchingData(range, masterData);
+        LinkedData? linkedData = GetMatchingData(rangeDef, range, masterData);
         Marshal.FinalReleaseComObject(range);
         if (linkedData is null)
             return null;
-        var excelData = new LinkedExcelData(linkedData.data, rangeDef, linkedData.linkField);
+        if (this.errors.Count > 0)
+            return null;
+        var excelData = new LinkedExcelData(linkedData.data, rangeDef, linkedData.linkField, this.warnings, this.errors);
         return excelData;
         }
 
-    private LinkedData? GetMatchingData(Excel.Range range, ExcelData masterData)
+    private LinkedData? GetMatchingData(RangeDef rangeDef, Excel.Range range, ExcelData masterData)
         {
         //get first row and compare with headers.
         Excel.Range firstRow = range.Rows.Item[1];
@@ -184,8 +186,10 @@ internal class ExcelDataSource
         int linkCount = matches.Count();
         if (linkCount == 0)
             return null;
-        if (linkCount > 1)
-            throw new Exception("TODO: propery report too many link fields.");
+        if (linkCount > 1){
+            this.errors.Add($"Too many link fields in workbook {Path.GetFileName(rangeDef.BookName)} range {rangeDef.DisplayName}.");
+            return null;
+            }
 
         return new LinkedData((object[,])range.Value2, matches.First());
         }
@@ -223,6 +227,8 @@ internal class ExcelDataSource
                     this.MergeFiles(masterData, dataToMerge);
                     this.warnings = this.warnings.Concat(newWarnings).Where(w => w.Contains($"\"{range.Name}\"")).ToList(); //adding only warnings for the relavant sheet. todo: Assuming sheetname is between double quotes. Create a SheetWarning record.
                     }
+                if (this.errors.Count > 0)
+                    break;
                 }
             workBook.Close(false);
             Marshal.FinalReleaseComObject(workBook);
@@ -286,10 +292,14 @@ public class ExcelData
     protected List<List<string>> rows = new List<List<string>>();
     public List<List<string>> Rows => rows;
     public readonly RangeDef rangeDef;
+    public readonly List<string> warnings;
+    public readonly List<string> errors;
 
-    public ExcelData(object[,] data, RangeDef rangeDef, string? linkField = null)
+    public ExcelData(object[,] data, RangeDef rangeDef, List<string> warnings, List<string> errors)
         {
         this.rangeDef = rangeDef;
+        this.warnings = warnings;
+        this.errors = errors;
         this.headers = ExtractHeaderRow(data);
         this.rows = ExtractBodyRows(data);
         }
@@ -332,8 +342,8 @@ class LinkedExcelData : ExcelData
     public string linkField;
     private Dictionary<string, List<string>> dict = [];
     private List<string> nullRow;
-    public LinkedExcelData(object[,] data, RangeDef rangeDef, string linkField) 
-        : base(data, rangeDef)
+    public LinkedExcelData(object[,] data, RangeDef rangeDef, string linkField, List<string> warnings, List<string> errors) 
+        : base(data, rangeDef, warnings, errors)
         {
         this.linkField = linkField;
         this.FillDictionary();

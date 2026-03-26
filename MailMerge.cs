@@ -136,21 +136,21 @@ internal partial class MailMerge
         return true;
         }
 
-    public void Start(JsonSettings settings)
+    public void Start()
         {
         SetRunningState(true);
-        if (!this.PerformChecks(settings))
+        if (!this.PerformChecks())
         {
             SetRunningState(false);
             return;
         }
-        if (settings.NamedRange == null)
+        if (this.viewModel.SelectedNamedRange == "")
         {
             SetRunningState(false);
             return;
         }
         this.progressListener.ReportInfo("Preparing data...");
-        this.excelChannel.Writer.TryWrite(new ExcelRequest(new DataParams(settings.DataSourceFileName, settings.NamedRange)));
+        this.excelChannel.Writer.TryWrite(new ExcelRequest(new DataParams(this.viewModel.DataSourceFileName, this.viewModel.SelectedNamedRange)));
         }
 
     private void SetRunningState(bool runningState)
@@ -191,7 +191,14 @@ internal partial class MailMerge
                 this.NamedRangesChanged?.Invoke(this, EventArgs.Empty);
                 break;
             case Progress.StatusType.ExcelData:
-                var data = status.GetExcelData();
+                ExcelData data = status.GetExcelData();
+                this.viewModel.Errors = string.Join("\n", data.errors);
+                this.viewModel.Warnings = string.Join("\n", data.warnings);
+                if (data.errors.Count > 0)
+                    { 
+                    SetRunningState(false);
+                    return; 
+                    }
                 //assuming we pressed Start.
                 data.Truncate(20); //todo: TEST!
 
@@ -315,16 +322,16 @@ internal partial class MailMerge
         Debug.WriteLine("Excel thread ended.");
         }
 
-    private bool PerformChecks(JsonSettings settings)
+    private bool PerformChecks()
         {
-        if (!File.Exists(settings.WordTemplateFileName))
+        if (!File.Exists(this.viewModel.WordTemplateFileName))
             {
-            MessageBox.Show($"Word template file not found: {settings.WordTemplateFileName}");
+            MessageBox.Show($"Word template file not found: {this.viewModel.WordTemplateFileName}");
             return false;
             }
-        if (!File.Exists(settings.DataSourceFileName))
+        if (!File.Exists(this.viewModel.DataSourceFileName))
             {
-            MessageBox.Show($"Data source file not found: {settings.DataSourceFileName}");
+            MessageBox.Show($"Data source file not found: {this.viewModel.DataSourceFileName}");
             return false;
             }
         //check if merged file folder is empty

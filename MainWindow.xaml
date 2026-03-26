@@ -12,7 +12,7 @@
         MinWidth="700" MinHeight="382"
         MaxWidth = "{Binding SystemParameters.MaximizedPrimaryScreenWidth}"
         MaxHeight = "{Binding SystemParameters.MaximizedPrimaryScreenHeight}"
-        Closing="Window_Closing" d:DesignHeight="481.73"
+        Closing="Window_Closing" d:DesignHeight="549.23"
         Background="AliceBlue"
         Loaded="Window_Loaded">
     <Window.DataContext>
@@ -116,6 +116,18 @@
             <Label x:Name="lblStatusMessage" Height="auto" VerticalAlignment="Top" Margin="50,0,50,0"
                 Content="{Binding Path=StatusMessage, UpdateSourceTrigger=PropertyChanged}"
                 Background="{Binding Path=InError, Converter={StaticResource ColorConverter}, ConverterParameter=Red;Transparent;0.2, Mode=OneWay}"/>
+        </DockPanel>
+        <DockPanel LastChildFill="True">
+            <Label x:Name="lblErrors" Height="auto" VerticalAlignment="Top" Margin="50,0,50,0"
+                Content="{Binding Path=Errors, UpdateSourceTrigger=PropertyChanged}"
+                Visibility="{Binding Path=ErrorsVisibility}"
+                Background="Salmon"/>
+        </DockPanel>
+        <DockPanel LastChildFill="True">
+            <Label x:Name="lblWarnings" Height="auto" VerticalAlignment="Top" Margin="50,0,50,0"
+                Content="{Binding Path=Warnings, UpdateSourceTrigger=PropertyChanged}"
+                Visibility="{Binding Path=WarningVisibility}"
+                Background="LightGreen"/>
         </DockPanel>
         <Grid Margin="50,0,50,0">
             <ProgressBar x:Name="progressBar" Height="20"
