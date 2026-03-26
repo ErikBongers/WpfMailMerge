@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.IO;
 using System.Windows;
 
 namespace WpfMailMerge;
@@ -137,6 +138,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             wordTemplateFileName = value; 
             OnPropertyChanged(nameof(WordTemplateFileName)); 
             OnPropertyChanged(nameof(CanStart));
+            OnPropertyChanged(nameof(IsDocPathValid));
             }
         }
     private string dataSourceFileName = @"C:\Users\erikb\Desktop\TestDataMailMergeV2.xlsm";
@@ -147,6 +149,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             dataSourceFileName = value; 
             OnPropertyChanged(nameof(DataSourceFileName));
             OnPropertyChanged(nameof(CanStart));
+            OnPropertyChanged(nameof(IsDataPathValid));
             this.mailMerge.SetDataSourceFileName(this.dataSourceFileName);
             }
         }
@@ -164,7 +167,9 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
                 && !string.IsNullOrEmpty(this.wordTemplateFileName) 
                 && !string.IsNullOrEmpty(this.dataSourceFileName) 
                 && (this.UseTestRecipient == false || !string.IsNullOrEmpty(this.TestRecipient))
-                && this.SelectedNamedRange != Constants.WAITING;
+                && this.SelectedNamedRange != Constants.WAITING
+                && this.IsDataPathValid
+                && this.IsDocPathValid;
             }
         }
     private bool inError = false;
@@ -217,7 +222,18 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
             OnPropertyChanged(nameof(MergeOtherExcels));
             }
         }
+    public bool IsDocPathValid { get { return IsFileOfType(this.WordTemplateFileName,[".docx", ".docm"]); } }
+    public bool IsDataPathValid { get { return IsFileOfType(this.DataSourceFileName, [".xlsx", ".xlsm"]); } }
     #endregion
+
+    private bool IsFileOfType(string filePath, IEnumerable<string> extensions)
+        {
+        if (!File.Exists(filePath))
+            return false;
+        var fileExt = Path.GetExtension(filePath);
+        
+        return extensions.Contains<string>(fileExt);
+        }
 
     private readonly MailMerge mailMerge;
 

@@ -31,7 +31,8 @@ internal partial class MailMerge
     public bool IsRunning { get; private set; } = false;
     public int RequestedStartIndex { get; internal set; } = 0;
     public bool HasRecoveredStartIndex { get; private set; } = false;
-    public List<RangeDef> NamedRanges { get; private set; } = [new RangeDef {BookName="", SheetName="", Name="..", Range="",  RangeType = RangeType.Waiting }];
+    private static readonly List<RangeDef> defaultNamedRange = [new RangeDef {BookName="", SheetName="", Name="..", Range="",  RangeType = RangeType.Waiting}];
+    public List<RangeDef> NamedRanges { get; private set; } = defaultNamedRange;
 
     private MailMergeViewModel viewModel;
 
@@ -185,9 +186,8 @@ internal partial class MailMerge
                 var error = status.GetError();
                 this.progressListener.ReportError(error.message);
                 break;
-            case Progress.StatusType.ExcelRanges:                ;
-                var ranges = status.GetExcelNamedRanges();
-                this.NamedRanges = ranges;
+            case Progress.StatusType.ExcelRanges:
+                this.NamedRanges = status.GetExcelNamedRanges();
                 this.NamedRangesChanged?.Invoke(this, EventArgs.Empty);
                 break;
             case Progress.StatusType.ExcelData:
@@ -358,11 +358,14 @@ internal partial class MailMerge
 
     internal void SetDataSourceFileName(string dataSourceFileName)
         {
-        if(File.Exists(dataSourceFileName))
+        if(this.viewModel.IsDataPathValid)
             {
             ExcelRequest req = new ExcelRequest(new RangesParams(dataSourceFileName));
             this.excelChannel.Writer.TryWrite(req);
+            return;
             }
+        this.NamedRanges = defaultNamedRange;
+        this.NamedRangesChanged?.Invoke(this, EventArgs.Empty); //todo: put this in the setter?
         }
 
     internal JsonSettings LoadSettings()

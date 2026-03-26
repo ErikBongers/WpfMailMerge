@@ -32,13 +32,15 @@
             <StackPanel Orientation="Vertical" Margin="10">
                 <DockPanel LastChildFill="True">
                     <Label x:Name="lblWordTemplate" Width="100" Content="{StaticResource Word template}" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
-                    <TextBox x:Name="txtWordTemplate" VerticalAlignment="Center"
-                     Text="{Binding Path=WordTemplateFileName}"/>
+                        <TextBox x:Name="txtWordTemplate" VerticalAlignment="Center"
+                            Text="{Binding Path=WordTemplateFileName}"
+                            Background="{Binding Path=IsDocPathValid, Converter={StaticResource ColorConverter}, ConverterParameter=Transparent;Red;0.2, Mode=OneWay}"/>
                 </DockPanel>
                 <DockPanel LastChildFill="True">
                     <Label x:Name="lblDataSource" Width="100" Content="{StaticResource Excel workbook}" HorizontalAlignment="Left" VerticalAlignment="Top" HorizontalContentAlignment="Right"/>
                     <TextBox x:Name="txtDataSource" VerticalAlignment="Center"
-                     Text="{Binding Path=DataSourceFileName}"/>
+                        Text="{Binding Path=DataSourceFileName}"
+                        Background="{Binding Path=IsDataPathValid, Converter={StaticResource ColorConverter}, ConverterParameter=Transparent;Red;0.2, Mode=OneWay}"/>
                 </DockPanel>
                 <DockPanel LastChildFill="True">
                     <Label x:Name="lblNamedRanges" Content="Data:" HorizontalAlignment="Left" VerticalAlignment="Top" Width="100" HorizontalContentAlignment="Right"
