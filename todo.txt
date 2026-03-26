@@ -1,6 +1,4 @@
-* Folder search, relative paths.
-  > when using an altered path, what key to use in the cache?
-    > the cache contains the SPECIFIED path as key, but also the generated path.
+* Test links in rtf mails.
 
 * Summarize these fields to unique lists:
     - VAK Kunstenbad: zij moeten extra info hebben over instrumentinitiatie.

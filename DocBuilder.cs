@@ -51,7 +51,7 @@ internal class DocBuilder
     private string templateDocPath;
     private Word.Document templateDoc;
     private List<FieldRangeDef> fieldRanges = [];
-    private Dictionary<string, DocDef> insertDocs = [];
+    private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
     private DecoratedString? subject;
     private DecoratedString? mailTo;
@@ -95,7 +95,7 @@ internal class DocBuilder
                     indices.Add(index);
                 else
                     {
-                    this.errors.Add($"Invalid {startMarker} field marker: {fieldMarker}"); 
+                    this.errors.Add($"Invalid {startMarker} field marker: {fieldMarker}");
                     //fall through...
                     }
                 if (remove)
@@ -170,30 +170,45 @@ internal class DocBuilder
         List<string> includedFilePaths = GetUniqueColumnValues(includedIndices);
         foreach (string originalFilePath in includedFilePaths)
             {
-            string generatedPath = originalFilePath;
-            if (!File.Exists(generatedPath))
+            string? generatedPath = this.FindAbsolutePath(originalFilePath);
+            if (generatedPath is null)
                 {
-                var dataDir = this.excelData.GetDataDir();
-                generatedPath = Path.Combine(dataDir, originalFilePath);
-                if (!File.Exists(generatedPath))
-                    {
-                    // if all attempts failed:
-                    this.errors.Add($"File to include not found: {originalFilePath}");
-                    continue;
-                    }
+                this.errors.Add($"File to include not found: {originalFilePath}");
+                continue;
                 }
-            insertDocs[originalFilePath] = new DocDef(generatedPath, this.documents.Open(generatedPath, Visible: false));
+            this.absolutePaths[originalFilePath] = generatedPath;
+            insertDocs[originalFilePath] = this.documents.Open(generatedPath, Visible: false, ReadOnly: true);
             }
         }
+
+    private string? FindAbsolutePath(string originalFilePath)
+        {
+        string generatedPath = originalFilePath;
+        if (!File.Exists(generatedPath))
+            {
+            var dataDir = this.excelData.GetDataDir();
+            generatedPath = Path.Combine(dataDir, originalFilePath);
+            if (!File.Exists(generatedPath))
+                return null;
+            }
+        return generatedPath;
+        }
+
+    private Dictionary<string, string> absolutePaths = [];
 
     private void CheckAndRemoveAttachmentMarkers(Word.Document templateDoc)
         {
         this.attachmentIndices = GetMarkerIndices(templateDoc, "%%ATTACH ", "%%", remove: true);
         List<string> attachementFilePaths = GetUniqueColumnValues(attachmentIndices);
-        foreach (string filePath in attachementFilePaths)
+        foreach (string originalFilePath in attachementFilePaths)
             {
-            if (!File.Exists(filePath))
-                this.errors.Add($"File to attach not found: {filePath}");
+            string? generatedPath = this.FindAbsolutePath(originalFilePath);
+            if (generatedPath is null)
+                {
+                this.errors.Add($"File to attach not found: {originalFilePath}");
+                continue;
+                }
+            this.absolutePaths[originalFilePath] = generatedPath;
             }
         }
 
@@ -350,10 +365,10 @@ internal class DocBuilder
                         }
                     else
                         {
-                        DocDef? insertDoc = null;
+                        Word.Document? insertDoc = null;
                         if (!insertDocs.TryGetValue(fileName, out insertDoc))
-                            continue;
-                        section.OuterRange.FormattedText = insertDoc.doc.Content.FormattedText;
+                            continue; //todo: this is an error condition! At least report it.
+                        section.OuterRange.FormattedText = insertDoc.Content.FormattedText;
                         }
                     }
                 }
@@ -363,7 +378,7 @@ internal class DocBuilder
                 {
                 string filePath = excelData.GetRow(rowIndex)[idx];
                 if (!string.IsNullOrWhiteSpace(filePath))
-                    attachments.Add(filePath);
+                    attachments.Add(this.absolutePaths[filePath]);
                 }
             attachments = attachments.Distinct().ToList();
             doc.Variables.Add(Constants.VAR_ATTACHMENTS, string.Join(";", attachments));
@@ -434,10 +449,10 @@ internal class DocBuilder
 
     public void CloseAll()
         {
-        foreach (var docDef in this.insertDocs.Values)
+        foreach (var doc in this.insertDocs.Values)
             {
-            docDef.doc.Close();//todo: wrap in exception handler?
-            Marshal.FinalReleaseComObject(docDef.doc);
+            doc.Close();//todo: wrap in exception handler?
+            Marshal.FinalReleaseComObject(doc);
             }
         this.insertDocs.Clear();
         try { this.templateDoc.Close(false); } catch (Exception e) { Debug.WriteLine("Can't close DocBuilder.templateDoc."); Debug.WriteLine(e); }
