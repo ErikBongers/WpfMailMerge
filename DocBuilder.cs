@@ -39,6 +39,8 @@ class DecoratedString
 
     }
 
+internal record DocDef(string FullPath, Word.Document doc);
+
 internal class DocBuilder
     {
     private readonly string sourceDocPath;
@@ -49,7 +51,7 @@ internal class DocBuilder
     private string templateDocPath;
     private Word.Document templateDoc;
     private List<FieldRangeDef> fieldRanges = [];
-    private Dictionary<string, Word.Document> insertDocs = [];
+    private Dictionary<string, DocDef> insertDocs = [];
     private List<int> attachmentIndices = [];
     private DecoratedString? subject;
     private DecoratedString? mailTo;
@@ -166,12 +168,12 @@ internal class DocBuilder
         {
         List<int> includedIndices = GetMarkerIndices(templateDoc, "%%INSERT ", "%%", remove: false);
         List<string> includedFilePaths = GetUniqueColumnValues(includedIndices);
-        foreach (string filePath in includedFilePaths)
+        foreach (string originalFilePath in includedFilePaths)
             {
-            if (!File.Exists(filePath))
-                this.errors.Add($"File to include not found: {filePath}");
+            if (!File.Exists(originalFilePath))
+                this.errors.Add($"File to include not found: {originalFilePath}");
             else
-                insertDocs[filePath] = this.documents.Open(filePath, Visible: false);
+                insertDocs[originalFilePath] = new DocDef(originalFilePath, this.documents.Open(originalFilePath, Visible: false));
             }
         }
 
@@ -339,10 +341,10 @@ internal class DocBuilder
                         }
                     else
                         {
-                        Word.Document? insertDoc = null;
+                        DocDef? insertDoc = null;
                         if (!insertDocs.TryGetValue(fileName, out insertDoc))
                             continue;
-                        section.OuterRange.FormattedText = insertDoc.Content.FormattedText;
+                        section.OuterRange.FormattedText = insertDoc.doc.Content.FormattedText;
                         }
                     }
                 }
@@ -423,10 +425,10 @@ internal class DocBuilder
 
     public void CloseAll()
         {
-        foreach (var doc in this.insertDocs.Values)
+        foreach (var docDef in this.insertDocs.Values)
             {
-            doc.Close();//todo: wrap in exception handler?
-            Marshal.FinalReleaseComObject(doc);
+            docDef.doc.Close();//todo: wrap in exception handler?
+            Marshal.FinalReleaseComObject(docDef.doc);
             }
         this.insertDocs.Clear();
         try { this.templateDoc.Close(false); } catch (Exception e) { Debug.WriteLine("Can't close DocBuilder.templateDoc."); Debug.WriteLine(e); }

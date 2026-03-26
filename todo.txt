@@ -1,4 +1,29 @@
-* Auto merge: if linked table onl has one column: skip it - no additional data.
+* Folder search, relative paths.
+  > when using an altered path, what key to use in the cache?
+    > the cache contains the SPECIFIED path as key, but also the generated path.
+
+* Summarize these fields to unique lists:
+    - VAK Kunstenbad: zij moeten extra info hebben over instrumentinitiatie.
+    - LES KB in DNV: extra info over ophalen DNV.
+    > Variable counts
+      - Vak[1], vak[2], ... base fields are: "benaming les1.1"  etc
+        > for now ok, each with a separate COLLAPSE group, but not handy.
+        > How about vak[*] for all rows?
+
+* A shortcut to allow collapse of certain empty lines?
+  : %%COLLAPSE LINES%% marks that all lines in a section should be collapsed zhen 
+    > shortcut
+      : %%LINE%%
+      > or shorter
+      : %%: 
+  > or an option for collapse?
+  : %%COLLAPSE EMPTY_LINES ?
+
+* Allow fields in included files?
+  > version 37...
+  
+
+* Auto merge: if linked table only has one column: skip it - no additional data.
 * test lnks with klassen/lessen.
 
 * disable UI fields while running.
