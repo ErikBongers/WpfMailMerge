@@ -1,31 +1,5 @@
-C:\Users\erikb\Desktop\MailMergeCustom.docx
-C:\Users\erikb\Desktop\MailMergeData\MasterData.xlsx
-
-* When typing in excel path field:
-  > don't check data until lost focus?
-  > reset named ranges on lost focus.
-
-Auto merge
------------
-- get dir
-- get all excels
-  > exclude master excel
-- get ranges
-- get their header rows
-- keep the ranges that have matching fields
-  > error/warning if more than 1 field matches.
-    > no merge on multiple columns yet.
-
-
-
-- get headers of 
-* Auto merge all source files.
-  > what about vestiging1, vestiging2,...?
-    > these names don't match.
-      > define an index:
-        > vestiging[1]
-          > one or zero based?
-            > one by default.
+* Auto merge: if linked table onl has one column: skip it - no additional data.
+* test lnks with klassen/lessen.
 
 * disable UI fields while running.
   > for now: disable them forever. This way we don't have to reset all the variables and connections.
