@@ -20,6 +20,7 @@ internal class PlaceholderDef
     public required int Start { get; set; }
     public required int End { get; set; }
     public required int Index { get; set; }
+    public required bool IsList { get; set; }
     }
 
 class DecoratedString
@@ -307,7 +308,7 @@ internal class DocBuilder
                         var found = find.Execute(Forward: true, Wrap: WdFindWrap.wdFindStop);
                         if (!found)
                             break;
-                        var fieldRange = new PlaceholderDef { Start = searchRange.Start, End = searchRange.End, Index = i };
+                        var fieldRange = new PlaceholderDef { Start = searchRange.Start, End = searchRange.End, Index = i, IsList = false };
                         this.fieldRanges.Add(fieldRange);
                         searchRange.Collapse(WdCollapseDirection.wdCollapseEnd);
                         }
