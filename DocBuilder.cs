@@ -180,8 +180,8 @@ internal class DocBuilder
 
     private void CheckIncludedDocs(Word.Document templateDoc)
         {
-        List<int> includedIndices = GetMarkerIndices(templateDoc, "%%INSERT ", "%%", remove: false);
-        List<string> includedFilePaths = GetUniqueColumnValues(includedIndices);
+        List<string> includedFilesFieldNames = this.insertDefs.SelectMany(def => def.Fields).ToList();
+        List<int> fieldIndexes 
         foreach (string originalFilePath in includedFilePaths)
             {
             string? generatedPath = this.FindAbsolutePath(originalFilePath);
