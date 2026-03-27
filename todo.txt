@@ -1,3 +1,12 @@
+* Try using the placeholders (at least the fields) to do the field replacements.
+
+* Ok, got all the placeholders - for regions - start and end markers are separate.
+  - for fields, add the field index. Done
+ > What about marked regions?
+   > ermm...the inner fields have been collected - good.
+  - all placeholders have been collected in order.
+    > they can be reverse replaced.
+
 * Refactor to create PlaceholderDefs in one go, without replacing!
   > Don't remove them as we are scanning top to bottom.
   > for now, do this parallel with existing scan.

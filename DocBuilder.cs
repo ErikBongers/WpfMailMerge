@@ -23,11 +23,14 @@ internal class PlaceholderDef
     public required bool IsList { get; set; }
     }
 
+internal enum PlaceHolderType { Field, Marker}
 internal class NewPlaceholderDef
     {
-    public required string FullText { get; set; }
+    public required PlaceHolderType Type { get; set; }
+    public required string InnerText { get; set; }
     public required int Pos { get; set; }
     public required bool IsList { get; set; }
+    public required int FieldIndex { get; set; }
     }
 
 class DecoratedString
@@ -282,15 +285,23 @@ internal class DocBuilder
             var searchRange = storyRange.Duplicate;
             while (true)
                 {
-                //todo: first scan the regions %%...%%.
-                //then the remaining {{...}} fields.
-                var fieldSection = FindSection(searchRange, "{{", "}}");
-                if (fieldSection == null)
-                    break; //done
-                string fieldText = fieldSection.InbetweenRange.Text;
-                bool IsList = fieldText.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
-                var placeholderDef = new NewPlaceholderDef {FullText = fieldSection.OuterRange.Text,  Pos = searchRange.Start, IsList = IsList};
+                var placeHolder = FindNextPlaceHolder(searchRange);
+                if (placeHolder is null)
+                    break;
+                var placeHolderText = placeHolder.OuterRange.Text;
+                string innerText = placeHolder.InbetweenRange.Text;
+                bool IsList = innerText.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
+                var placeHolderType = placeHolder.StartMarker.Text == "{{" ? PlaceHolderType.Field : PlaceHolderType.Marker;
+                int fieldIndex = -1;
+                if(placeHolderType == PlaceHolderType.Field)
+                    {
+                    string fieldName = innerText.Replace("*", "").Trim();
+                    fieldIndex = this.excelData.Headers.FindIndex(h => h==fieldName);
+                    }
+                NewPlaceholderDef placeholderDef = new NewPlaceholderDef {Type = placeHolderType, InnerText = innerText,  Pos = searchRange.Start, IsList = IsList, FieldIndex = fieldIndex};
                 this.newPlaceHolders.Add(placeholderDef);
+                searchRange = placeHolder.EndMarker.Duplicate;
+                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
                 }
             }
         }
@@ -299,8 +310,8 @@ internal class DocBuilder
         {
         try
             {
-            //CreatePlaceholderDefs();
-            this.fieldNames = GetFieldNames();
+            this.fieldNames = GetFieldNames(); //todo: in constructor?
+            CreatePlaceholderDefs();
             var missingFields = this.fieldNames.Except(excelData.Headers).ToList();
             if(missingFields.Count > 0)
                 this.errors.Add($"Missing field(s): {string.Join(", ", missingFields)}");
@@ -450,7 +461,7 @@ internal class DocBuilder
         return new Section { StartMarker = collapseRangeStart.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
         }
     
-    private static void FindNextPlaceholder(Word.Range searchRange)
+    private static Section? FindNextPlaceHolder(Word.Range searchRange)
         {
         Word.Range? fieldStart = null;
         Word.Range? markerStart = null;
@@ -468,17 +479,33 @@ internal class DocBuilder
         if (findStart.Found)
             markerStart = rangeStart.Duplicate;
 
+        if (fieldStart is null && markerStart is null)
+            return null;
 
+        bool useField = fieldStart is not null &&
+                        (markerStart is null || fieldStart.Start < markerStart.Start);
 
+        string endMarker = "%%";
+        Word.Range sectionStartMarker;
+        if (useField){
+            sectionStartMarker = fieldStart!.Duplicate;
+            endMarker = "}}";
+            }
+        else
+            {
+            sectionStartMarker = markerStart!.Duplicate;
+            }
 
-        //Word.Range collapseRangeEnd = rangeStart.Duplicate;
-        //collapseRangeEnd.Collapse(WdCollapseDirection.wdCollapseEnd);
-        //Word.Find findEnd = collapseRangeEnd.Find;
-        //findEnd.Text = endMarker;
-        //findEnd.Execute();
-        //if (!findEnd.Found)
-        //    return null; //todo: error: collapse end marker not found
-        //return new Section { StartMarker = rangeStart.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
+        //find endmarker (if required!)
+        Word.Range collapseRangeEnd = sectionStartMarker.Duplicate;
+        collapseRangeEnd.Collapse(WdCollapseDirection.wdCollapseEnd); //continue search where we ended.
+        Word.Find findEnd = collapseRangeEnd.Find;
+        findEnd.Text = endMarker;
+        findEnd.Execute();
+        if (!findEnd.Found)
+            return null; //todo: error: end marker not found
+
+        return new Section { StartMarker = sectionStartMarker.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
         }
 
 
