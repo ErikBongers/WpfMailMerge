@@ -181,7 +181,18 @@ internal class DocBuilder
     private void CheckIncludedDocs(Word.Document templateDoc)
         {
         List<string> includedFilesFieldNames = this.insertDefs.SelectMany(def => def.Fields).ToList();
-        List<int> fieldIndexes 
+        List<int> fieldIndexes = [];
+        foreach (var fieldName in includedFilesFieldNames)
+        {
+            int index = this.excelData.Headers.IndexOf(fieldName);
+            if(index < 0)
+            {
+                this.errors.Add($"Field {fieldName} not found.");
+                continue;
+            }
+            fieldIndexes.Add(index);
+            this.excelData.GetUniqueColumnValues(index);
+        }
         foreach (string originalFilePath in includedFilePaths)
             {
             string? generatedPath = this.FindAbsolutePath(originalFilePath);
