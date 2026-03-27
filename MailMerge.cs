@@ -119,13 +119,13 @@ internal partial class MailMerge
     private bool SetRecoveredStartIndex()
         {
         var files = Directory.GetFiles(DocBuilder.MergedDocsDir, Constants.SENT_FILE_PREFIX + "*.*");
-        Array.Sort(files);
-        var lastFile = files.Last();
-        if (lastFile is null)
+        if (files.Length == 0)
             {
             MessageBox.Show("Could not determine last file. Setting start position to 1.");
             return false;
             }
+        Array.Sort(files);
+        var lastFile = files.Last();
         var index = RxFirstInt().Match(lastFile).Value;
         if (index is null)
             {

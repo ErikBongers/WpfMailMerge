@@ -1,3 +1,8 @@
+* Refactor to create PlaceholderDefs in one go, without replacing!
+  > Don't remove them as we are scanning top to bottom.
+  > for now, do this parallel with existing scan.
+
+
 * Create FieldDef: don't get the index from the range, but store it in the field def.
   > should benefit performance...
 
