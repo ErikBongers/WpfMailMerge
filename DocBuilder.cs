@@ -1,4 +1,5 @@
 ﻿using Microsoft.Office.Interop.Word;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -160,24 +161,6 @@ internal class DocBuilder
         return values;
         }
 
-    private List<string> GetUniqueColumnValues(List<int> indices)
-        {
-        return [.. excelData.Rows.SelectMany(row =>
-            {
-                List<string> values = [];
-                foreach (int index in indices)
-                    {
-                    if (index < row.Count)
-                        {
-                        string value = row[index];
-                        if (!string.IsNullOrWhiteSpace(value))
-                            values.Add(value);
-                        }
-                    }
-                return values;
-            }).Distinct()];
-        }
-
     private void CheckIncludedDocs(Word.Document templateDoc)
         {
         List<string> includedFilesFieldNames = this.insertDefs.SelectMany(def => def.Fields).ToList();
@@ -191,8 +174,9 @@ internal class DocBuilder
                 continue;
             }
             fieldIndexes.Add(index);
-            this.excelData.GetUniqueColumnValues(index);
         }
+        List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(fieldIndexes);
+
         foreach (string originalFilePath in includedFilePaths)
             {
             string? generatedPath = this.FindAbsolutePath(originalFilePath);
@@ -224,7 +208,7 @@ internal class DocBuilder
     private void CheckAndRemoveAttachmentMarkers(Word.Document templateDoc)
         {
         this.attachmentIndices = GetMarkerIndices(templateDoc, "%%ATTACH ", "%%", remove: true);
-        List<string> attachementFilePaths = GetUniqueColumnValues(attachmentIndices);
+        List<string> attachementFilePaths = this.excelData.GetUniqueColumnValues(attachmentIndices);
         foreach (string originalFilePath in attachementFilePaths)
             {
             string? generatedPath = this.FindAbsolutePath(originalFilePath);
@@ -350,7 +334,7 @@ internal class DocBuilder
                 this.errors.Add("Missing end of field delimiter '}}'.");
                 return fields;
             }
-            fields.Add(text.Substring(pos+2, endPos - pos));
+            fields.Add(text.Substring(pos+2, endPos - pos-2));
             pos = endPos + 2;
         }
         return fields;

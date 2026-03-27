@@ -346,6 +346,24 @@ public class ExcelData
         {
         this.rows = this.rows.Take(max).ToList();
         }
+
+    public List<string> GetUniqueColumnValues(IEnumerable<int> indices)
+        {
+        return [..this.Rows.SelectMany(row =>
+            {
+                List<string> values = [];
+                foreach (int index in indices)
+                    {
+                    if (index < row.Count)
+                        {
+                        string value = row[index];
+                        if (!string.IsNullOrWhiteSpace(value))
+                            values.Add(value);
+                        }
+                    }
+                return values;
+            }).Distinct()];
+        }
     }
 
 class LinkedExcelData : ExcelData
@@ -376,4 +394,4 @@ class LinkedExcelData : ExcelData
             return this.dict[key];
         return this.nullRow;
         }
-    }
+}
