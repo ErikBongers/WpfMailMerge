@@ -1,13 +1,9 @@
-* Collect ranges in multiple stages.
-  > Ranges to be removed first (INSERT)
-    Inserts have been collected.
-    What now?
-    Remove them BEFORE collecting ranges. 
-
-* Collect INSERTS during first scan.
-  > collapse region before continuing.
-  > new starting point is the collapsed region.
-
+* During FirstScan(), the INSERTS are removed and InsertDefs are created.
+  > These need to be treated as insert points for the docs to insert.
+  > They must be part of the placeholders.
+    > This means they CAN't be deleted during first scan.
+        > Instead: insert a new placeholder
+        : {{__INSERT index}}
 * Try using the placeholders (at least the fields) to do the field replacements.
 
 * Ok, got all the placeholders - for regions - start and end markers are separate.

@@ -319,8 +319,8 @@ internal class DocBuilder
                 InsertDef insertDef = new InsertDef { PlaceHolder = placeHolderDef, Fields = fields };
                 this.insertDefs.Add(insertDef);
                 searchRange = placeHolder.OuterRange;
-                searchRange.Delete();
-                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseStart);
+                searchRange.Text = $"%%__INSERT {this.insertDefs.Count-1}%%";
+                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
                 }
             }
         }
@@ -383,6 +383,8 @@ internal class DocBuilder
             if (this.errors.Count > 0)
                 return [];
             CreatePlaceholderDefs();
+            if (this.errors.Count > 0)
+                return [];
             this.fieldNames = GetFieldNames(); //todo: in constructor?
             var missingFields = this.fieldNames.Except(excelData.Headers).ToList();
             if(missingFields.Count > 0)
