@@ -3,7 +3,11 @@
   > They must be part of the placeholders.
     > This means they CAN't be deleted during first scan.
         > Instead: insert a new placeholder
-        : {{__INSERT index}}
+        : %%__IDX index%%
+
+* Since subject is a single undecorated textline, make %%SUBJECT ...%% a self closing marker.
+  > don't do this yet, as it contains fields mixed with text!!!
+
 * Try using the placeholders (at least the fields) to do the field replacements.
 
 * Ok, got all the placeholders - for regions - start and end markers are separate.

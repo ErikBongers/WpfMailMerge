@@ -65,7 +65,7 @@ internal class DocBuilder
     private Word.Document templateDoc;
     private List<PlaceholderDef> fieldRanges = [];
     private List<NewPlaceHolderDef> newPlaceHolders = []; //todo: remove the 'new' once done.
-    private List<InsertDef> insertDefs = [];
+    private List<MarkerDef> markerDefs = [];
     private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
     private DecoratedString? subject;
@@ -163,7 +163,7 @@ internal class DocBuilder
 
     private void CheckIncludedDocs(Word.Document templateDoc)
         {
-        List<string> includedFilesFieldNames = this.insertDefs.SelectMany(def => def.Fields).ToList();
+        List<string> includedFilesFieldNames = this.markerDefs.SelectMany(def => def.Fields).ToList();
         List<int> fieldIndexes = [];
         foreach (var fieldName in includedFilesFieldNames)
         {
@@ -278,28 +278,33 @@ internal class DocBuilder
     //collect placeholders that need to be removed from the template.
     private void FirstScan()
         {
+        FirstScanForMarker("INSERT", false);
+        FirstScanForMarker("ATTACH", true);
+        }
+    private void FirstScanForMarker(string marker, bool deleteMarker)
+        {
         foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
             {
             var searchRange = storyRange.Duplicate;
             while (true)
                 {
-                var placeHolder = FindNextPlaceHolder(searchRange);
+                var placeHolder = FindNextPlaceHolder(searchRange);//todo: I'm only looking for %%, not {{
                 if (placeHolder is null)
                     break;
                 string innerText = placeHolder.InbetweenRange.Text;
-                if (!innerText.Trim().StartsWith("INSERT "))
+                if (!innerText.Trim().StartsWith(marker+" "))
                 {
                     searchRange = placeHolder.OuterRange;
                     searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
                     continue;
                 }
-                var fieldListString =innerText.Substring("INSERT ".Length);
+                var fieldListString =innerText.Substring((marker+" ").Length);
                 var fields = GetFieldsFromString(fieldListString);
                 if(this.errors.Count > 0)
                     return;
                 if(fields.Count == 0)
                 {
-                    this.errors.Add("No fields specified for %%INSERT marker.");
+                    this.errors.Add($"No fields specified for %%{marker} marker.");
                     return;
                 }
                 NewPlaceHolderDef placeHolderDef = new NewPlaceHolderDef 
@@ -311,11 +316,19 @@ internal class DocBuilder
                     InnerText = placeHolder.OuterRange.Text, 
                     IsList = false 
                 };
-                InsertDef insertDef = new InsertDef { PlaceHolder = placeHolderDef, Fields = fields };
-                this.insertDefs.Add(insertDef);
+                MarkerDef markerDef = new MarkerDef { PlaceHolder = placeHolderDef, Fields = fields, MarkerTag = marker };
+                this.markerDefs.Add(markerDef);
+                
                 searchRange = placeHolder.OuterRange;
-                searchRange.Text = $"%%__INSERT {this.insertDefs.Count-1}%%";
-                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
+                if (deleteMarker)
+                    {
+                    searchRange.Delete();
+                    }
+                else
+                    {
+                    searchRange.Text = $"%%__IDX {this.markerDefs.Count-1}%%"; //todo: this replacement marker is not allowed in the original file.
+                    searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
+                    }
                 }
             }
         }
@@ -618,8 +631,9 @@ public class Section
 
     }
 
-internal class InsertDef
+internal class MarkerDef
     {
-    public required NewPlaceHolderDef PlaceHolder;
+    public required NewPlaceHolderDef PlaceHolder; //todo: probably not needed
     public List<string> Fields = [];
+    public required string MarkerTag;
     }
