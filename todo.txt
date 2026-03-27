@@ -1,3 +1,51 @@
+* Create FieldDef: don't get the index from the range, but store it in the field def.
+  > should benefit performance...
+
+* For now, leave the indexed placeholders in place, for debugging purposes, but allow them to be removed completely with a switch once a full FieldDef has been created.
+* Refactor linking 'at runtime' (no pre-expanding of linked data, because dicts are O(1))
+- Create FieldDefs instead of FieldRanges
+  - add pointer to linked table
+  - and index to linked column
+  > the FieldDef can of course be a 'plain' replacement.
+  > A fieldDef can return a full replacement text with only a row as input.
+  > try it with:
+  : {{vestigingsplaats[1].ExtraInfo}}
+
+
+
+
+
+Link with a list field
+-----------------------
+> How do we know it's a bloody list field???
+  > asterisk in field name.
+    > if needed, you can still insert the name with an asterisk to display the plain text.
+  > currently a data row can only contain strings.
+    > it also needs to contain a list of values.
+    > or...not. As long as the getter returns a list.
+    > keep list of indexes of list-fields.
+      > getter always returns a list of values (most often just the string)
+      > the length is VARIABLE!!!
+        > therefor the data can not be flattened, but needs to stay embedded.
+      > user code can then always loop the retured value to do stuff.
+* this field
+: {{lessen*.ExtraInfo}}
+> gets translated into
+: {{234.1}}
+...where 
+  - 234 is the lessen index
+  - 1 is the linked field index.
+  > system should know that 234 links to a specific linked table.
+    > have a dict that contains all these indexes and the related linked tables.
+      > this dict may contain multiple refs to the same table.
+> actually...
+: {{234.1}}
+may just be
+: {{222}} 
+...where 222 is the index of a fieldDef that contains this data:
+  - fact that it's linked data
+  - pointer to the linked table and field.
+
 * Test links in rtf mails.
 
 * Summarize these fields to unique lists:
@@ -7,7 +55,19 @@
       - Vak[1], vak[2], ... base fields are: "benaming les1.1"  etc
         > for now ok, each with a separate COLLAPSE group, but not handy.
         > How about vak[*] for all rows?
+        > What should the template look like?
+          : %%LIST "{{ vakken }}", %%
+          > indicates a semi-colon separated list of values.
+          > will be replaced by...
+            > all instances of vak.
+              > all on one line or separate lines?
+                > default all on one line
+                > separate lines: how?
+                  : {{ vak* +LINE }} --> the plus is optional
+                  > this will insert a newline after every instance of vak.
 
+* Remove empty line if no value:
+  : {{ some_field -LINE }}
 * A shortcut to allow collapse of certain empty lines?
   : %%COLLAPSE LINES%% marks that all lines in a section should be collapsed zhen 
     > shortcut

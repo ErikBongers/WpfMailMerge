@@ -15,7 +15,7 @@ internal class FieldDef
     public required int Index { get; set; }
     }
 
-internal class FieldRangeDef
+internal class PlaceholderDef
     {
     public required int Start { get; set; }
     public required int End { get; set; }
@@ -50,7 +50,7 @@ internal class DocBuilder
     private string mergedDocsDir;
     private string templateDocPath;
     private Word.Document templateDoc;
-    private List<FieldRangeDef> fieldRanges = [];
+    private List<PlaceholderDef> fieldRanges = [];
     private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
     private DecoratedString? subject;
@@ -307,7 +307,7 @@ internal class DocBuilder
                         var found = find.Execute(Forward: true, Wrap: WdFindWrap.wdFindStop);
                         if (!found)
                             break;
-                        var fieldRange = new FieldRangeDef { Start = searchRange.Start, End = searchRange.End, Index = i };
+                        var fieldRange = new PlaceholderDef { Start = searchRange.Start, End = searchRange.End, Index = i };
                         this.fieldRanges.Add(fieldRange);
                         searchRange.Collapse(WdCollapseDirection.wdCollapseEnd);
                         }
