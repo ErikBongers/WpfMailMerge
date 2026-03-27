@@ -1,3 +1,9 @@
+* Collect ranges in multiple stages.
+  > Ranges to be removed first (INSERT)
+    Inserts have been collected.
+    What now?
+    Remove them BEFORE collecting ranges. 
+
 * Collect INSERTS during first scan.
   > collapse region before continuing.
   > new starting point is the collapsed region.

@@ -24,7 +24,7 @@ internal class PlaceholderDef
     }
 
 internal enum PlaceHolderType { Field, Marker}
-internal class NewPlaceholderDef
+internal class NewPlaceHolderDef
     {
     public required PlaceHolderType Type { get; set; }
     public required string InnerText { get; set; }
@@ -63,7 +63,7 @@ internal class DocBuilder
     private string templateDocPath;
     private Word.Document templateDoc;
     private List<PlaceholderDef> fieldRanges = [];
-    private List<NewPlaceholderDef> newPlaceHolders = []; //todo: remove the 'new' once done.
+    private List<NewPlaceHolderDef> newPlaceHolders = []; //todo: remove the 'new' once done.
     private List<InsertDef> insertDefs = [];
     private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
@@ -180,34 +180,6 @@ internal class DocBuilder
 
     private void CheckIncludedDocs(Word.Document templateDoc)
         {
-        var it = this.newPlaceHolders.GetEnumerator();
-        while (it.MoveNext())
-            {
-            if (it.Current.Type != PlaceHolderType.Marker)
-                continue;
-
-            if(it.Current.InnerText.Trim() == "INSERT")
-                {
-                var startPlaceHolder = it.Current;
-                List<NewPlaceholderDef> fieldList = [];
-                while(it.MoveNext())
-                    {
-                    if (it.Current.InnerText.Trim() == "END INSERT")
-                        {
-                        this.insertDefs.Add(new InsertDef { StartPlaceHolder = startPlaceHolder, EndPlaceHolder = it.Current, FieldPlaceHolders = fieldList });
-                        break;
-                        }
-
-                    //assuming all placeholders are fields.
-                    fieldList.Add(it.Current);
-                    }
-                }
-            }
-
-
-
-
-
         List<int> includedIndices = GetMarkerIndices(templateDoc, "%%INSERT ", "%%", remove: false);
         List<string> includedFilePaths = GetUniqueColumnValues(includedIndices);
         foreach (string originalFilePath in includedFilePaths)
@@ -308,6 +280,71 @@ internal class DocBuilder
         return !hasErrors;
         }
 
+    //collect placeholders that need to be removed from the template.
+    private void FirstScan()
+        {
+        foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
+            {
+            var searchRange = storyRange.Duplicate;
+            while (true)
+                {
+                var placeHolder = FindNextPlaceHolder(searchRange);
+                if (placeHolder is null)
+                    break;
+                string innerText = placeHolder.InbetweenRange.Text;
+                if (!innerText.Trim().StartsWith("INSERT "))
+                {
+                    searchRange = placeHolder.OuterRange;
+                    searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
+                    continue;
+                }
+                var fieldListString =innerText.Substring("INSERT ".Length);
+                var fields = GetFieldsFromString(fieldListString);
+                if(this.errors.Count > 0)
+                    return;
+                if(fields.Count == 0)
+                {
+                    this.errors.Add("No fields specified for %%INSERT marker.");
+                    return;
+                }
+                NewPlaceHolderDef placeHolderDef = new NewPlaceHolderDef 
+                { 
+                    Type = PlaceHolderType.Marker, 
+                    Pos = placeHolder.OuterRange.Start, 
+                    FieldIndex = -1, 
+                    FieldName = "", 
+                    InnerText = placeHolder.OuterRange.Text, 
+                    IsList = false 
+                };
+                InsertDef insertDef = new InsertDef { PlaceHolder = placeHolderDef, Fields = fields };
+                this.insertDefs.Add(insertDef);
+                searchRange = placeHolder.OuterRange;
+                searchRange.Delete();
+                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseStart);
+                }
+            }
+        }
+
+    private List<string> GetFieldsFromString(string text)
+    {
+        int pos = 0;
+        List<string> fields = new List<string>();
+        while (true)
+        {
+            pos = text.IndexOf("{{", pos);
+            if (pos == -1)
+                break;
+            int endPos = text.IndexOf("}}", pos);
+            if (endPos == -1){
+                this.errors.Add("Missing end of field delimiter '}}'.");
+                return fields;
+            }
+            fields.Add(text.Substring(pos+2, endPos - pos));
+            pos = endPos + 2;
+        }
+        return fields;
+    }
+    
     private void CreatePlaceholderDefs()
         {
         foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
@@ -329,10 +366,11 @@ internal class DocBuilder
                     fieldName = innerText.Replace("*", "").Trim();
                     fieldIndex = this.excelData.Headers.FindIndex(h => h==fieldName);
                     }
-                NewPlaceholderDef placeholderDef = new NewPlaceholderDef {Type = placeHolderType, InnerText = innerText,  Pos = searchRange.Start, IsList = IsList, FieldIndex = fieldIndex, FieldName = fieldName};
+                NewPlaceHolderDef placeholderDef = new NewPlaceHolderDef {Type = placeHolderType, InnerText = innerText,  Pos = searchRange.Start, IsList = IsList, FieldIndex = fieldIndex, FieldName = fieldName};
                 this.newPlaceHolders.Add(placeholderDef);
-                searchRange = placeHolder.EndMarker.Duplicate;
-                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
+                searchRange = placeHolder.OuterRange;
+                searchRange.Delete();
+                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseStart);
                 }
             }
         }
@@ -341,6 +379,9 @@ internal class DocBuilder
         {
         try
             {
+            FirstScan();
+            if (this.errors.Count > 0)
+                return [];
             CreatePlaceholderDefs();
             this.fieldNames = GetFieldNames(); //todo: in constructor?
             var missingFields = this.fieldNames.Except(excelData.Headers).ToList();
@@ -582,7 +623,6 @@ public class Section
 
 internal class InsertDef
     {
-    public required NewPlaceholderDef StartPlaceHolder;
-    public required NewPlaceholderDef EndPlaceHolder;
-    public List<NewPlaceholderDef> FieldPlaceHolders = [];
+    public required NewPlaceHolderDef PlaceHolder;
+    public List<string> Fields = [];
     }
