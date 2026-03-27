@@ -1,3 +1,7 @@
+* Collect INSERTS during first scan.
+  > collapse region before continuing.
+  > new starting point is the collapsed region.
+
 * Try using the placeholders (at least the fields) to do the field replacements.
 
 * Ok, got all the placeholders - for regions - start and end markers are separate.
