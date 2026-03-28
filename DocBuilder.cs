@@ -32,24 +32,7 @@ internal class NewPlaceHolderDef
     public required int Pos { get; set; }
     public required bool IsList { get; set; }
     public required string FieldName { get; set; }
-    public required int FieldIndex { get; set; }
-    }
-
-class DecoratedString
-    {
-    public required string Value { get; set; }
-    public required List<int> indices = [];
-    public string Decorate(List<string> row) //todo: use enumerable instead of list here and everywhere possible.
-        {
-        string decorated = this.Value;
-        foreach (int index in indices)
-            {
-            string value = row[index];
-            decorated = decorated.Replace($"{{{{{index}}}}}", value);
-            }
-        return decorated;
-        }
-
+    public required int ItemIndex { get; set; }
     }
 
 internal record DocDef(string FullPath, Word.Document doc);
@@ -65,14 +48,13 @@ internal class DocBuilder
     private Word.Document templateDoc;
     private List<PlaceholderDef> fieldRanges = [];
     private List<NewPlaceHolderDef> newPlaceHolders = []; //todo: remove the 'new' once done.
-    private List<MarkerDef> markerDefs = [];
+    private List<MarkerDef> fileMarkerDefs = [];
     private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
     private DecoratedString? subject;
     private DecoratedString? mailTo;
     private Word.Documents documents;
     private List<string> errors = [];
-    private HashSet<string> fieldNames;
     private readonly IWordToEmailStrategy wordToEmail;
 
     public DocBuilder(string templateDocPath, ExcelData excelData, IWordToEmailStrategy wordToEmail)
@@ -88,9 +70,154 @@ internal class DocBuilder
             Directory.CreateDirectory(this.mergedDocsDir);
         this.templateDocPath = Path.Combine(mailMergeTempDir, "template.docx");
         this.templateDoc = this.documents.Add(this.sourceDocPath) ?? throw new Exception("Template doc not found.");
-        this.fieldNames = CreateTemplateDoc();
+        CreateTemplateDoc();
         }
 
+    private void CreateTemplateDoc()
+        {
+        try
+            {
+            FirstScan();
+            if (this.errors.Count > 0)
+                return;
+            CreatePlaceholderDefs();
+            if (this.errors.Count > 0)
+                return;
+            var fieldNames = GetFieldNames();
+            var missingFields = fieldNames.Except(excelData.Headers).ToList();
+            if (missingFields.Count > 0)
+                this.errors.Add($"Missing field(s): {string.Join(", ", missingFields)}");
+
+            CheckMarkerFilesExist();
+            CheckEmailMarkers(this.templateDoc);
+
+            //collect the ranges AFTER all modifications. This ensures that the ranges are correct.
+            foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
+                {
+                for (int i = 0; i < excelData.Headers.Count; i++)
+                    {
+                    Word.Range searchRange = storyRange.Duplicate;
+                    while (true)
+                        {
+                        Word.Find find = searchRange.Find;
+                        find.ClearFormatting();
+                        find.Forward = true;
+                        find.Wrap = WdFindWrap.wdFindStop;
+                        find.Text = $"{{{{{i}}}}}";
+                        var found = find.Execute(Forward: true, Wrap: WdFindWrap.wdFindStop);
+                        if (!found)
+                            break;
+                        var fieldRange = new PlaceholderDef { Start = searchRange.Start, End = searchRange.End, Index = i, IsList = false };
+                        this.fieldRanges.Add(fieldRange);
+                        searchRange.Collapse(WdCollapseDirection.wdCollapseEnd);
+                        }
+                    }
+                }
+            this.fieldRanges = this.fieldRanges.OrderByDescending(fr => fr.Start).ToList();
+            }
+        finally
+            {
+            }
+        }
+
+    //collect placeholders that need to be removed from the template.
+    private void FirstScan()
+        {
+        FirstScanForMarker("INSERT", false);
+        FirstScanForMarker("ATTACH", true);
+        }
+    private void FirstScanForMarker(string marker, bool deleteMarker)
+        {
+        foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
+            {
+            var searchRange = storyRange.Duplicate;
+            while (true)
+                {
+                var placeHolder = FindNextPlaceHolder(searchRange);//todo: I'm only looking for %%, not {{
+                if (placeHolder is null)
+                    break;
+                string innerText = placeHolder.InbetweenRange.Text;
+                if (!innerText.Trim().StartsWith(marker + " "))
+                    {
+                    searchRange = placeHolder.OuterRange;
+                    searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
+                    continue;
+                    }
+                var fieldListString = innerText.Substring((marker + " ").Length);
+                var fields = GetFieldsFromString(fieldListString);
+                if (this.errors.Count > 0)
+                    return;
+                if (fields.Count == 0)
+                    {
+                    this.errors.Add($"No fields specified for %%{marker} marker.");
+                    return;
+                    }
+                NewPlaceHolderDef placeHolderDef = new NewPlaceHolderDef
+                    {
+                    Type = PlaceHolderType.Marker,
+                    Pos = placeHolder.OuterRange.Start,
+                    ItemIndex = -1,
+                    FieldName = "",
+                    InnerText = placeHolder.OuterRange.Text, //todo: use InnerRange?
+                    IsList = false
+                    };
+                MarkerDef markerDef = new MarkerDef { PlaceHolder = placeHolderDef, Fields = fields, MarkerTag = marker };
+                this.fileMarkerDefs.Add(markerDef);
+
+                searchRange = placeHolder.OuterRange;
+                if (deleteMarker)
+                    {
+                    searchRange.Delete();
+                    }
+                else
+                    {
+                    searchRange.Text = $"%%{Constants.IDX_MARKER}{this.fileMarkerDefs.Count - 1}%%"; //todo: this replacement marker is not allowed in the original file.
+                    searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
+                    }
+                }
+            }
+        }
+
+    private void CreatePlaceholderDefs()
+        {
+        foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
+            {
+            var searchRange = storyRange.Duplicate;
+            while (true)
+                {
+                var placeHolder = FindNextPlaceHolder(searchRange);
+                if (placeHolder is null)
+                    break;
+                var placeHolderText = placeHolder.OuterRange.Text;
+                string innerText = placeHolder.InbetweenRange.Text;
+                bool IsList = innerText.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
+                var placeHolderType = placeHolder.StartMarker.Text == "{{" ? PlaceHolderType.Field : PlaceHolderType.Marker;
+                int itemIndex = -1;
+                string fieldName = "";
+                if (placeHolderType == PlaceHolderType.Field)
+                    {
+                    fieldName = innerText.Replace("*", "").Trim();
+                    itemIndex = this.excelData.Headers.FindIndex(h => h == fieldName);
+                    }
+                else
+                    {
+                    if (innerText.StartsWith(Constants.IDX_MARKER))
+                        {
+                        itemIndex = int.Parse(innerText.Replace(Constants.IDX_MARKER, ""));
+                        fieldName = Constants.IDX_MARKER;
+                        }
+                    else
+                        fieldName = innerText; //todo: should probably be the first word only...but then there's "END COLLAPSE"...
+                    }
+                NewPlaceHolderDef placeholderDef = new NewPlaceHolderDef { Type = placeHolderType, InnerText = innerText, Pos = searchRange.Start, IsList = IsList, ItemIndex = itemIndex, FieldName = fieldName };
+                this.newPlaceHolders.Add(placeholderDef);
+                searchRange = placeHolder.OuterRange;
+                searchRange.Delete();
+                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseStart);
+                }
+            }
+        }
+    
     private List<int> GetMarkerIndices(Word.Document templateDoc, string startMarker, string endMarker, bool remove)
         {
         List<int> indices = [];
@@ -161,16 +288,16 @@ internal class DocBuilder
         return values;
         }
 
-    private void CheckIncludedDocs(Word.Document templateDoc)
+    private void CheckMarkerFilesExist()
         {
-        List<string> includedFilesFieldNames = this.markerDefs.SelectMany(def => def.Fields).ToList();
+        List<string> includedFilesFieldNames = this.fileMarkerDefs.SelectMany(def => def.Fields).ToList();
         List<int> fieldIndexes = [];
         foreach (var fieldName in includedFilesFieldNames)
         {
             int index = this.excelData.Headers.IndexOf(fieldName);
             if(index < 0)
             {
-                this.errors.Add($"Field {fieldName} not found.");
+                this.errors.Add($"Field {fieldName} not found."); //todo: perhaps move this check to the other fields check.
                 continue;
             }
             fieldIndexes.Add(index);
@@ -205,48 +332,19 @@ internal class DocBuilder
 
     private Dictionary<string, string> absolutePaths = [];
 
-    private void CheckAndRemoveAttachmentMarkers(Word.Document templateDoc)
-        {
-        this.attachmentIndices = GetMarkerIndices(templateDoc, "%%ATTACH ", "%%", remove: true);
-        List<string> attachementFilePaths = this.excelData.GetUniqueColumnValues(attachmentIndices);
-        foreach (string originalFilePath in attachementFilePaths)
-            {
-            string? generatedPath = this.FindAbsolutePath(originalFilePath);
-            if (generatedPath is null)
-                {
-                this.errors.Add($"File to attach not found: {originalFilePath}");
-                continue;
-                }
-            this.absolutePaths[originalFilePath] = generatedPath;
-            }
-        }
-
     private void CheckEmailMarkers(Word.Document doc)
         {
         var subjects = GetMarkerValues(doc, "%%SUBJECT ", "%%", remove: true);
         if (subjects.Count > 1)
             this.errors.Add("Multiple SUBJECT markers found. Only one is allowed.");
-        this.subject = GetDecoratedString(subjects[0]);
+        this.subject = new DecoratedString(subjects[0], this.excelData.Headers);
         
         var mailTos = GetMarkerValues(doc, "%%MAILTO ", "%%", remove: true);
         if (mailTos.Count > 1) //todo: allow multiple mailto markers for multiple recipients
             this.errors.Add("Multiple MAILTO markers found. Only one is allowed.");
-        this.mailTo = GetDecoratedString(mailTos[0]);
+        this.mailTo = new DecoratedString(mailTos[0], this.excelData.Headers);
         }
 
-    private static DecoratedString GetDecoratedString(string text)
-        {
-        List<int> indices = [];
-        string rxPattern = @"{{(\d*)}}";
-        foreach (Match match in Regex.Matches(text, rxPattern))
-            {
-            if (match.Groups.Count > 1 && int.TryParse(match.Groups[1].Value, out int index))
-                {
-                indices.Add(index);
-                }
-            }
-        return new DecoratedString { Value = text, indices = indices };
-        }
 
     public static string MergedDocsDir => Path.Combine(Path.GetTempPath(), Constants.APP_NAME, "Merged");
 
@@ -275,64 +373,6 @@ internal class DocBuilder
         return !hasErrors;
         }
 
-    //collect placeholders that need to be removed from the template.
-    private void FirstScan()
-        {
-        FirstScanForMarker("INSERT", false);
-        FirstScanForMarker("ATTACH", true);
-        }
-    private void FirstScanForMarker(string marker, bool deleteMarker)
-        {
-        foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
-            {
-            var searchRange = storyRange.Duplicate;
-            while (true)
-                {
-                var placeHolder = FindNextPlaceHolder(searchRange);//todo: I'm only looking for %%, not {{
-                if (placeHolder is null)
-                    break;
-                string innerText = placeHolder.InbetweenRange.Text;
-                if (!innerText.Trim().StartsWith(marker+" "))
-                {
-                    searchRange = placeHolder.OuterRange;
-                    searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
-                    continue;
-                }
-                var fieldListString =innerText.Substring((marker+" ").Length);
-                var fields = GetFieldsFromString(fieldListString);
-                if(this.errors.Count > 0)
-                    return;
-                if(fields.Count == 0)
-                {
-                    this.errors.Add($"No fields specified for %%{marker} marker.");
-                    return;
-                }
-                NewPlaceHolderDef placeHolderDef = new NewPlaceHolderDef 
-                { 
-                    Type = PlaceHolderType.Marker, 
-                    Pos = placeHolder.OuterRange.Start, 
-                    FieldIndex = -1, 
-                    FieldName = "", 
-                    InnerText = placeHolder.OuterRange.Text, 
-                    IsList = false 
-                };
-                MarkerDef markerDef = new MarkerDef { PlaceHolder = placeHolderDef, Fields = fields, MarkerTag = marker };
-                this.markerDefs.Add(markerDef);
-                
-                searchRange = placeHolder.OuterRange;
-                if (deleteMarker)
-                    {
-                    searchRange.Delete();
-                    }
-                else
-                    {
-                    searchRange.Text = $"%%__IDX {this.markerDefs.Count-1}%%"; //todo: this replacement marker is not allowed in the original file.
-                    searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseEnd);
-                    }
-                }
-            }
-        }
-
     private List<string> GetFieldsFromString(string text)
     {
         int pos = 0;
@@ -353,85 +393,6 @@ internal class DocBuilder
         return fields;
     }
     
-    private void CreatePlaceholderDefs()
-        {
-        foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
-            {
-            var searchRange = storyRange.Duplicate;
-            while (true)
-                {
-                var placeHolder = FindNextPlaceHolder(searchRange);
-                if (placeHolder is null)
-                    break;
-                var placeHolderText = placeHolder.OuterRange.Text;
-                string innerText = placeHolder.InbetweenRange.Text;
-                bool IsList = innerText.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
-                var placeHolderType = placeHolder.StartMarker.Text == "{{" ? PlaceHolderType.Field : PlaceHolderType.Marker;
-                int fieldIndex = -1;
-                string fieldName = "";
-                if (placeHolderType == PlaceHolderType.Field)
-                    {
-                    fieldName = innerText.Replace("*", "").Trim();
-                    fieldIndex = this.excelData.Headers.FindIndex(h => h==fieldName);
-                    }
-                NewPlaceHolderDef placeholderDef = new NewPlaceHolderDef {Type = placeHolderType, InnerText = innerText,  Pos = searchRange.Start, IsList = IsList, FieldIndex = fieldIndex, FieldName = fieldName};
-                this.newPlaceHolders.Add(placeholderDef);
-                searchRange = placeHolder.OuterRange;
-                searchRange.Delete();
-                searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseStart);
-                }
-            }
-        }
-
-    private HashSet<string> CreateTemplateDoc()
-        {
-        try
-            {
-            FirstScan();
-            if (this.errors.Count > 0)
-                return [];
-            CreatePlaceholderDefs();
-            if (this.errors.Count > 0)
-                return [];
-            this.fieldNames = GetFieldNames(); //todo: in constructor?
-            var missingFields = this.fieldNames.Except(excelData.Headers).ToList();
-            if(missingFields.Count > 0)
-                this.errors.Add($"Missing field(s): {string.Join(", ", missingFields)}");
-
-            CheckIncludedDocs(this.templateDoc);
-            CheckAndRemoveAttachmentMarkers(this.templateDoc);
-            CheckEmailMarkers(this.templateDoc);
-
-            //collect the ranges AFTER all modifications. This ensures that the ranges are correct.
-            foreach (Word.Range storyRange in this.templateDoc.StoryRanges)
-                {
-                for (int i = 0; i < excelData.Headers.Count; i++)
-                    {
-                    Word.Range searchRange = storyRange.Duplicate;
-                    while (true)
-                        {
-                        Word.Find find = searchRange.Find;
-                        find.ClearFormatting();
-                        find.Forward = true;
-                        find.Wrap = WdFindWrap.wdFindStop;
-                        find.Text = $"{{{{{i}}}}}";
-                        var found = find.Execute(Forward: true, Wrap: WdFindWrap.wdFindStop);
-                        if (!found)
-                            break;
-                        var fieldRange = new PlaceholderDef { Start = searchRange.Start, End = searchRange.End, Index = i, IsList = false };
-                        this.fieldRanges.Add(fieldRange);
-                        searchRange.Collapse(WdCollapseDirection.wdCollapseEnd);
-                        }
-                    }
-                }
-            this.fieldRanges = this.fieldRanges.OrderByDescending(fr => fr.Start).ToList();
-            return this.fieldNames;
-            }
-        finally
-            {
-            }
-        }
-
     public string BuildDoc(int rowIndex)
         {
         string fullName = Path.Combine(this.mergedDocsDir, $"{Constants.MERGED_FILE_PREFIX}{rowIndex}.docx");

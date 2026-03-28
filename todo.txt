@@ -1,9 +1,15 @@
-* During FirstScan(), the INSERTS are removed and InsertDefs are created.
-  > These need to be treated as insert points for the docs to insert.
-  > They must be part of the placeholders.
-    > This means they CAN't be deleted during first scan.
-        > Instead: insert a new placeholder
-        : %%__IDX index%%
+* During FirstScan(), the INSERT and ATTACH markers are stored in MarkerDefs.
+  > The ATTACH markers are deleted.
+  > Do the same for the EMAIL and SUBJECT markers
+  > Subject has a "decorated string" but still assumes indexed placeholders: {{123}}}
+    > replace this regex pattern to match {{text}} multiple times.
+    > remove placeholder texts and just keep the positions.
+      > per row, insert the texts in reverse pos order.
+  > the INSERT markers are replaced with:
+    : %%__IDX index%%
+  > COLLAPSE markers should be left alone - they are collapsed per generated document.
+    > todo later: collect all the fields for collapse based on that.
+  > Second scan should register all these placeholders.
 
 * Since subject is a single undecorated textline, make %%SUBJECT ...%% a self closing marker.
   > don't do this yet, as it contains fields mixed with text!!!
