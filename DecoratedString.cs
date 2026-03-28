@@ -30,7 +30,7 @@ public partial class DecoratedString
             int index = fieldNames.IndexOf(foundField);
             if (index < 0)
                 {
-                this.Errors.Add($"Can't find field {foundField}");
+                this.Errors.Add($"Can't find field {foundField}.");
                 continue;
                 }
             this.templateText = this.templateText.Remove(pos, match.Length);

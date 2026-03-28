@@ -338,11 +338,21 @@ internal class DocBuilder
         if (subjects.Count > 1)
             this.errors.Add("Multiple SUBJECT markers found. Only one is allowed.");
         this.subject = new DecoratedString(subjects[0], this.excelData.Headers);
+        if(this.subject.Errors.Count > 0)
+            {
+            this.errors.AddRange(this.subject.Errors);
+            return;
+            }
         
         var mailTos = GetMarkerValues(doc, "%%MAILTO ", "%%", remove: true);
         if (mailTos.Count > 1) //todo: allow multiple mailto markers for multiple recipients
             this.errors.Add("Multiple MAILTO markers found. Only one is allowed.");
         this.mailTo = new DecoratedString(mailTos[0], this.excelData.Headers);
+        if (this.mailTo.Errors.Count > 0)
+            {
+            this.errors.AddRange(this.mailTo.Errors);
+            return;
+            }
         }
 
 
