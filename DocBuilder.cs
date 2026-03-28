@@ -19,6 +19,7 @@ internal class DocBuilder
     private List<PlaceHolderDef> newPlaceHolders = []; //todo: remove the 'new' once done.
     private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
+    private List<int> mailToIndices = [];
     private DecoratedStringPlaceHolder? subject;
     private Word.Documents documents;
     private List<string> errors = [];
@@ -72,6 +73,23 @@ internal class DocBuilder
                 .ToList();
             if (mailTos.Count == 0)
                 this.errors.Add(ErrorDefs.MissingMarker(Constants.MAILTO_MARKER));
+
+            this.mailToIndices = this.newPlaceHolders
+                .Where(p => p is DecoratedStringPlaceHolder)
+                .Cast<DecoratedStringPlaceHolder>()
+                .Where(p => p.MarkerName == Constants.MAILTO_MARKER)
+                .ToList()
+                .SelectMany(m => m.GetFieldIndices())
+                .ToList();
+
+            this.attachmentIndices = this.newPlaceHolders
+                .Where(p => p is FilesPlaceHolder)
+                .Cast<FilesPlaceHolder>()
+                .Where(p => p.MarkerName == Constants.ATTACH_MARKER)
+                .ToList()
+                .SelectMany(m => m.GetFieldIndices())
+                .ToList();
+
 
             //this.templateDoc.SaveAs2(@"C:\Users\erikb\Desktop\test.docx");
             }
@@ -326,12 +344,7 @@ internal class DocBuilder
                 doc.Variables.Add(Constants.VAR_SUBJECT, subjectDecorated);
                 }
 
-            var mailTos = this.newPlaceHolders
-                .Where(p => p is DecoratedStringPlaceHolder)
-                .Cast<DecoratedStringPlaceHolder>()
-                .Where(p => p.MarkerName == Constants.MAILTO_MARKER)
-                .ToList()
-                .Select(m => m.GetFieldValues(this.excelData.GetRow(rowIndex)));
+            var mailTos = string.Join(";", this.mailToIndices.Select(i => excelData.GetRow(i)));
 
             doc.Variables.Add(Constants.VAR_RECIPIENTS, string.Join(";", mailTos));
             this.wordToEmail.SaveDoc(doc, fullName);

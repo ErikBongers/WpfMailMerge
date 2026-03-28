@@ -63,13 +63,18 @@ internal class DecoratedStringPlaceHolder : MarkerPlaceHolder
     public DecoratedStringPlaceHolder(Section section, List<string> fieldNames)
         : base(section)
         {
-        this.DecoratedString = new DecoratedString(this.MarkerText.Substring(this.MarkerName.Length), fieldNames);
+        this.DecoratedString = new DecoratedString(this.MarkerText, fieldNames);
         this.Errors.AddRange(this.DecoratedString.Errors);
         }
 
+    public IEnumerable<int> GetFieldIndices()
+        {
+        return this.DecoratedString.Inserts.Select(i => i.Index);
+        }
+    
     public IEnumerable<string> GetFieldValues(List<string> row)
         {
-        return this.DecoratedString.Inserts.Select(i => row[i.Pos]);
+        return this.DecoratedString.Inserts.Select(i => row[i.Index]);
         }
     }
 
