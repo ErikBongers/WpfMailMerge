@@ -40,7 +40,7 @@ public partial class DecoratedString
         }
 
 
-    public string Decorate(List<string> row) //todo: use enumerable instead of list here and everywhere possible.
+    public string Decorate(List<string> row)
         {
         string decorated = this.templateText;
         foreach (var insert in this.inserts)
