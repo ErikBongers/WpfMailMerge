@@ -16,7 +16,7 @@ internal class DocBuilder
     private string mergedDocsDir;
     private string templateDocPath;
     private Word.Document templateDoc;
-    private List<PlaceHolderDef> newPlaceHolders = []; //todo: remove the 'new' once done.
+    private List<PlaceHolderDef> placeHolders = [];
     private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
     private List<int> mailToIndices = [];
@@ -46,13 +46,13 @@ internal class DocBuilder
         try
             {
             ExtractPlaceholders();
-            this.newPlaceHolders = this.newPlaceHolders.OrderByDescending(p => p.Pos).ToList();
+            this.placeHolders = this.placeHolders.OrderByDescending(p => p.Pos).ToList();
             if (this.errors.Count > 0)
                 return;
             CheckFiles();
             if (this.errors.Count > 0)
                 return;
-            var subjects = this.newPlaceHolders
+            var subjects = this.placeHolders
                 .Where(p => p is DecoratedStringPlaceHolder)
                 .Cast<DecoratedStringPlaceHolder>()
                 .Where(p => p.MarkerName == Constants.SUBJECT_MARKER)
@@ -66,7 +66,7 @@ internal class DocBuilder
                 return;
 
             this.subject = subjects[0];
-            var mailTos = this.newPlaceHolders
+            var mailTos = this.placeHolders
                 .Where(p => p is DecoratedStringPlaceHolder)
                 .Cast<DecoratedStringPlaceHolder>()
                 .Where(p => p.MarkerName == Constants.MAILTO_MARKER)
@@ -74,7 +74,7 @@ internal class DocBuilder
             if (mailTos.Count == 0)
                 this.errors.Add(ErrorDefs.MissingMarker(Constants.MAILTO_MARKER));
 
-            this.mailToIndices = this.newPlaceHolders
+            this.mailToIndices = this.placeHolders
                 .Where(p => p is DecoratedStringPlaceHolder)
                 .Cast<DecoratedStringPlaceHolder>()
                 .Where(p => p.MarkerName == Constants.MAILTO_MARKER)
@@ -82,7 +82,7 @@ internal class DocBuilder
                 .SelectMany(m => m.GetFieldIndices())
                 .ToList();
 
-            this.attachmentIndices = this.newPlaceHolders
+            this.attachmentIndices = this.placeHolders
                 .Where(p => p is FilesPlaceHolder)
                 .Cast<FilesPlaceHolder>()
                 .Where(p => p.MarkerName == Constants.ATTACH_MARKER)
@@ -114,18 +114,18 @@ internal class DocBuilder
                     break;
                 if (section.StartMarker.Text == "{{")
                     {
-                    this.newPlaceHolders.Add(new FieldPlaceHolder(section, this.excelData.Headers));
+                    this.placeHolders.Add(new FieldPlaceHolder(section, this.excelData.Headers));
                     formattingKeepingText = "_";
                     }
                 else //marker
                     {
                     var innerText = section.InbetweenRange.Text;
                     if (innerText.StartsWith(Constants.INSERT_MARKER) || innerText.StartsWith(Constants.ATTACH_MARKER))
-                        this.newPlaceHolders.Add(new FilesPlaceHolder(section, this.excelData.Headers));
+                        this.placeHolders.Add(new FilesPlaceHolder(section, this.excelData.Headers));
                     else if (innerText.StartsWith(Constants.SUBJECT_MARKER))
-                        this.newPlaceHolders.Add(new DecoratedStringPlaceHolder(section, this.excelData.Headers));
+                        this.placeHolders.Add(new DecoratedStringPlaceHolder(section, this.excelData.Headers));
                     else if (innerText.StartsWith(Constants.MAILTO_MARKER))
-                        this.newPlaceHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
+                        this.placeHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
                     else if (innerText.StartsWith(Constants.COLLAPSE_MARKER))
                         { } //todo this.newPlaceHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
                     else if (innerText.StartsWith(Constants.END_COLLAPSE_MARKER))
@@ -212,7 +212,7 @@ internal class DocBuilder
 
     private void CheckFiles()
         {
-        var fieldIndexes = this.newPlaceHolders
+        var fieldIndexes = this.placeHolders
             .Where(p => p is FilesPlaceHolder)
             .Cast<FilesPlaceHolder>()
             .SelectMany(p => p.DecoratedString.Inserts.Select(i => i.Index));
@@ -236,7 +236,7 @@ internal class DocBuilder
 
     private void OpenIncludedFiles()
         {
-        var fieldIndexes = this.newPlaceHolders
+        var fieldIndexes = this.placeHolders
             .Where(p => p is FilesPlaceHolder)
             .Cast<FilesPlaceHolder>()
             .Where(p => p.MarkerName == Constants.INSERT_MARKER)
@@ -329,33 +329,18 @@ internal class DocBuilder
         doc.Content.FormattedText = this.templateDoc.Content;
         try
             {
-            foreach (var placeHolder in this.newPlaceHolders)
+            int replacedUpToPos = doc.Content.End;
+            foreach (var placeHolder in this.placeHolders)
                 {
+                if (placeHolder.Pos > replacedUpToPos)
+                    continue; //skip placeholders until we are below replacedUpToPos 
+
                 if (placeHolder is FieldPlaceHolder fieldPlaceHolder)
-                    fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), excelData.GetRow(rowIndex)); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
+                    replacedUpToPos = fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), excelData.GetRow(rowIndex)); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
                 else if(placeHolder is FilesPlaceHolder filesPlaceHolder)
-                    filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), excelData.GetRow(rowIndex), this.insertDocs);
+                    replacedUpToPos = filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), excelData.GetRow(rowIndex), this.insertDocs);
                 }
-            foreach (Word.Range storyRange in doc.StoryRanges)
-                {
-                while (true)
-                    {
-                    var section = FindSection(storyRange, "%%COLLAPSE%%", "%%END COLLAPSE%%");
-                    if (section == null)
-                        break;
-                    var text = section.InbetweenRange.Text;
-                    text = text.Replace("\a", "");
-                    if (string.IsNullOrWhiteSpace(text))
-                        {
-                        section.OuterRange.Delete();
-                        }
-                    else
-                        {
-                        section.StartMarker.Delete();
-                        section.EndMarker.Delete();
-                        }
-                    }
-                }
+
             //Add email variables (attachments, subject, mailto).
             List<string> attachments = [];
             foreach (var idx in this.attachmentIndices)

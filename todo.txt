@@ -1,58 +1,16 @@
-Result of parsed template
---------------------------
-- Currently all field and marker placeholders are removed, except...
-- Only %%COLLAPSE remains.
-- Markers are stored in this.markerDefs
-- fields are stored in this.newPlaceHolders
-> why 2 separate lists?
-  > because markers NEVER remain in place. They are just flags. While fields really are placeholders.
-    > nonsense: %%INSERT is actually a placeholder.
-  > note that when replacing fields, the fields inside (some) markers also need to be replaced: subject, mailTo,...
-
-* Think we're ready to test second scan and replacement of doc.
-  > create a test ?
-* During FirstScan(), the INSERT and ATTACH markers are stored in MarkerDefs.
-  - The ATTACH markers are deleted.
-  - EMAIL and SUBJECT DecoratedStrings are added and placeholders deleted
-  - the INSERT markers are replaced with:
-    : %%__IDX index%%
-  - COLLAPSE markers should be left alone - they are collapsed per generated document.
-    > todo later: collect all the fields for collapse based on that.
-  > Second scan should register all these placeholders.
-
-* Since subject is a single undecorated textline, make %%SUBJECT ...%% a self closing marker.
-  > don't do this yet, as it contains fields mixed with text!!!
-
-* Try using the placeholders (at least the fields) to do the field replacements.
-
-* Ok, got all the placeholders - for regions - start and end markers are separate.
-  - for fields, add the field index. Done
- > What about marked regions?
-   > ermm...the inner fields have been collected - good.
-  - all placeholders have been collected in order.
-    > they can be reverse replaced.
-
-* Refactor to create PlaceholderDefs in one go, without replacing!
-  > Don't remove them as we are scanning top to bottom.
-  > for now, do this parallel with existing scan.
+Nested COLLAPSEs
+-------------------
+> Assembling the collapses needs to be done recursively.
+> Collapse end markers need a pointer to the start marker as we are replacing bottom-up.
+> A Replace() returns the pos up to where things have been replaced.
+  > the loop then just needs to skip to a smaller Pos.
+  > A collapse end marker's Replace() will return:
+    - when no collapse needed: it's own start pos.
+    - when collapsing - the begin marker's start pos.
 
 
-* Create FieldDef: don't get the index from the range, but store it in the field def.
-  > should benefit performance...
-
-* For now, leave the indexed placeholders in place, for debugging purposes, but allow them to be removed completely with a switch once a full FieldDef has been created.
-* Refactor linking 'at runtime' (no pre-expanding of linked data, because dicts are O(1))
-- Create FieldDefs instead of FieldRanges
-  - add pointer to linked table
-  - and index to linked column
-  > the FieldDef can of course be a 'plain' replacement.
-  > A fieldDef can return a full replacement text with only a row as input.
-  > try it with:
-  : {{vestigingsplaats[1].ExtraInfo}}
-
-
-
-
+* test with multiple inserted docs per row.
+  > make the docs a bit smaller perhaps.
 
 Link with a list field
 -----------------------

@@ -36,9 +36,10 @@ internal class FieldPlaceHolder : PlaceHolderDef
             this.Errors.Add(ErrorDefs.FieldNotFound(fieldName));
         }
 
-    public void Replace(Word.Range range, List<string> row)
+    public int Replace(Word.Range range, List<string> row)
         {
         range.Text = row[this.FieldIndex];
+        return range.Start;
         }
     }
 
@@ -93,7 +94,7 @@ internal class FilesPlaceHolder : FieldsMarkerPlaceHolder
     public FilesPlaceHolder(Section section, List<string> fieldNames)
         : base(section, fieldNames) { }
 
-    public void Replace(Word.Range range, List<string> row, Dictionary<string, Word.Document> docs)
+    public int Replace(Word.Range range, List<string> row, Dictionary<string, Word.Document> docs)
         {
         var indexList = this.DecoratedString.Inserts
             .OrderByDescending(i => i.Pos)
@@ -113,5 +114,6 @@ internal class FilesPlaceHolder : FieldsMarkerPlaceHolder
             range.FormattedText = insertDoc.Content.FormattedText;
             range.Collapse(WdCollapseDirection.wdCollapseStart);
             }
+        return range.Start;
         }
     }
