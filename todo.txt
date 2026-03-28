@@ -1,13 +1,22 @@
+Result of parsed template
+--------------------------
+- Currently all field and marker placeholders are removed, except...
+- Only %%COLLAPSE remains.
+- Markers are stored in this.markerDefs
+- fields are stored in this.newPlaceHolders
+> why 2 separate lists?
+  > because markers NEVER remain in place. They are just flags. While fields really are placeholders.
+    > nonsense: %%INSERT is actually a placeholder.
+  > note that when replacing fields, the fields inside (some) markers also need to be replaced: subject, mailTo,...
+
+* Think we're ready to test second scan and replacement of doc.
+  > create a test ?
 * During FirstScan(), the INSERT and ATTACH markers are stored in MarkerDefs.
-  > The ATTACH markers are deleted.
-  > Do the same for the EMAIL and SUBJECT markers
-  > Subject has a "decorated string" but still assumes indexed placeholders: {{123}}}
-    > replace this regex pattern to match {{text}} multiple times.
-    > remove placeholder texts and just keep the positions.
-      > per row, insert the texts in reverse pos order.
-  > the INSERT markers are replaced with:
+  - The ATTACH markers are deleted.
+  - EMAIL and SUBJECT DecoratedStrings are added and placeholders deleted
+  - the INSERT markers are replaced with:
     : %%__IDX index%%
-  > COLLAPSE markers should be left alone - they are collapsed per generated document.
+  - COLLAPSE markers should be left alone - they are collapsed per generated document.
     > todo later: collect all the fields for collapse based on that.
   > Second scan should register all these placeholders.
 

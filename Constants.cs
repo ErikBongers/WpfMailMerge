@@ -10,5 +10,11 @@ public static class Constants
     public const string WAITING = "Waiting...";
     public static string SENT_FILE_PREFIX = "sent_";
     public const string IDX_MARKER = "__IDX ";
+    public const string INSERT_MARKER = "INSERT";
+    public const string ATTACH_MARKER = "ATTACH";
+    public const string SUBJECT_MARKER = "SUBJECT";
+    public const string MAILTO_MARKER = "MAILTO";
+    public const string COLLAPSE_MARKER = "COLLAPSE";
+    public const string END_COLLAPSE_MARKER = "END COLLAPSE";
     }
 

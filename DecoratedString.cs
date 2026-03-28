@@ -2,11 +2,11 @@
 
 namespace WpfMailMerge;
 
-record Insert (int Pos, int Index);
+public record Insert (int Pos, int Index);
 public partial class DecoratedString
     {
     private readonly string orgText;
-    private List<Insert> inserts = [];
+    public List<Insert> Inserts = [];
     public List<string> Errors = [];
     private string templateText;
 
@@ -34,16 +34,20 @@ public partial class DecoratedString
                 continue;
                 }
             this.templateText = this.templateText.Remove(pos, match.Length);
-            this.inserts.Add(new Insert(pos, index));
+            this.Inserts.Add(new Insert(pos, index));
             }
-        this.inserts.Reverse();
+        this.Inserts.Reverse();
         }
 
+    public bool IsFieldsWithoutText()
+        {
+        return this.templateText.Trim().Length == 0;
+        }
 
     public string Decorate(List<string> row)
         {
         string decorated = this.templateText;
-        foreach (var insert in this.inserts)
+        foreach (var insert in this.Inserts)
             {
             string value = row[insert.Index];
             decorated = decorated.Insert(insert.Pos, value);
