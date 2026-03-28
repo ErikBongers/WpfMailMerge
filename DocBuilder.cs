@@ -49,7 +49,7 @@ internal class DocBuilder
             this.newPlaceHolders = this.newPlaceHolders.OrderByDescending(p => p.Pos).ToList();
             if (this.errors.Count > 0)
                 return;
-            OpenIncludedFiles();
+            CheckFiles();
             if (this.errors.Count > 0)
                 return;
             var subjects = this.newPlaceHolders
@@ -90,6 +90,9 @@ internal class DocBuilder
                 .SelectMany(m => m.GetFieldIndices())
                 .ToList();
 
+            if (this.errors.Count > 0)
+                return;
+            OpenIncludedFiles();
 
             //this.templateDoc.SaveAs2(@"C:\Users\erikb\Desktop\test.docx");
             }
@@ -106,10 +109,14 @@ internal class DocBuilder
             while (true)
                 {
                 var section = FindNextPlaceHolder(searchRange);
+                string formattingKeepingText = "";
                 if (section is null)
                     break;
                 if (section.StartMarker.Text == "{{")
+                    {
                     this.newPlaceHolders.Add(new FieldPlaceHolder(section, this.excelData.Headers));
+                    formattingKeepingText = "_";
+                    }
                 else //marker
                     {
                     var innerText = section.InbetweenRange.Text;
@@ -127,7 +134,7 @@ internal class DocBuilder
                         errors.Add(ErrorDefs.UnknownMarker(innerText[..innerText.IndexOf(" ")]));
                     }
                 searchRange = section.OuterRange;
-                searchRange.Delete();
+                searchRange.Text = formattingKeepingText; // a Delete() or empty text will remove the formating of the original field or marker and may even trim spaces.
                 searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseStart);
                 }
             }
@@ -203,11 +210,36 @@ internal class DocBuilder
         return values;
         }
 
+    private void CheckFiles()
+        {
+        var fieldIndexes = this.newPlaceHolders
+            .Where(p => p is FilesPlaceHolder)
+            .Cast<FilesPlaceHolder>()
+            .SelectMany(p => p.DecoratedString.Inserts.Select(i => i.Index));
+
+        List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(fieldIndexes);
+
+        includedFilePaths
+            .Where(path => this.FindAbsolutePath(path) is null)
+            .ToList()
+            .ForEach(path => this.errors.Add($"File to include not found: {path}"));
+
+        if (this.errors.Count > 0)
+            return;
+
+        foreach (string originalFilePath in includedFilePaths)
+            {
+            string generatedPath = this.FindAbsolutePath(originalFilePath)!;
+            this.absolutePaths[originalFilePath] = generatedPath;
+            }
+        }
+
     private void OpenIncludedFiles()
         {
         var fieldIndexes = this.newPlaceHolders
             .Where(p => p is FilesPlaceHolder)
             .Cast<FilesPlaceHolder>()
+            .Where(p => p.MarkerName == Constants.INSERT_MARKER)
             .SelectMany(p => p.DecoratedString.Inserts.Select(i => i.Index));
 
         List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(fieldIndexes);
@@ -224,9 +256,7 @@ internal class DocBuilder
 
         foreach (string originalFilePath in includedFilePaths)
             {
-            string generatedPath = this.FindAbsolutePath(originalFilePath)!; //should already have been checked.
-            this.absolutePaths[originalFilePath] = generatedPath;
-            insertDocs[originalFilePath] = this.documents.Open(generatedPath, Visible: false, ReadOnly: true);
+            insertDocs[originalFilePath] = this.documents.Open(this.absolutePaths[originalFilePath], Visible: false, ReadOnly: true);
             }
         }
 
@@ -301,12 +331,10 @@ internal class DocBuilder
             {
             foreach (var placeHolder in this.newPlaceHolders)
                 {
-                Word.Range range = doc.Range(placeHolder.Pos, placeHolder.Pos);
-
                 if (placeHolder is FieldPlaceHolder fieldPlaceHolder)
-                    fieldPlaceHolder.Replace(range, excelData.GetRow(rowIndex));
+                    fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), excelData.GetRow(rowIndex)); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
                 else if(placeHolder is FilesPlaceHolder filesPlaceHolder)
-                    filesPlaceHolder.Replace(range, excelData.GetRow(rowIndex), this.insertDocs);
+                    filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), excelData.GetRow(rowIndex), this.insertDocs);
                 }
             foreach (Word.Range storyRange in doc.StoryRanges)
                 {
