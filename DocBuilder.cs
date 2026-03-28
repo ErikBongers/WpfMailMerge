@@ -16,12 +16,10 @@ internal class DocBuilder
     private string mergedDocsDir;
     private string templateDocPath;
     private Word.Document templateDoc;
-    private List<NewPlaceHolderDef> newPlaceHolders = []; //todo: remove the 'new' once done.
-    private List<MarkerDef> markerDefs = [];
+    private List<PlaceHolderDef> newPlaceHolders = []; //todo: remove the 'new' once done.
     private Dictionary<string, Word.Document> insertDocs = [];
     private List<int> attachmentIndices = [];
-    private DecoratedString? subject;
-    private DecoratedString? mailTo;
+    private DecoratedStringPlaceHolder? subject;
     private Word.Documents documents;
     private List<string> errors = [];
     private readonly IWordToEmailStrategy wordToEmail;
@@ -50,19 +48,31 @@ internal class DocBuilder
             this.newPlaceHolders = this.newPlaceHolders.OrderByDescending(p => p.Pos).ToList();
             if (this.errors.Count > 0)
                 return;
-            var fieldNames = GetFieldNames();
-            var missingFields = fieldNames.Except(excelData.Headers).ToList();
-            if (missingFields.Count > 0)
-                this.errors.Add($"Missing field(s): {string.Join(", ", missingFields)}");
-
-            CheckMarkerFilesExist();
             OpenIncludedFiles();
-            this.subject = GetUniqueDecoratedStringMarkers(this.templateDoc, Constants.SUBJECT_MARKER);
-            if (this.subject?.Errors.Count > 0)
-                this.errors.AddRange(this.subject.Errors);
-            this.mailTo = GetUniqueDecoratedStringMarkers(this.templateDoc, Constants.MAILTO_MARKER);
-            if (this.mailTo?.Errors.Count > 0)
-                this.errors.AddRange(this.mailTo.Errors);
+            if (this.errors.Count > 0)
+                return;
+            var subjects = this.newPlaceHolders
+                .Where(p => p is DecoratedStringPlaceHolder)
+                .Cast<DecoratedStringPlaceHolder>()
+                .Where(p => p.MarkerName == Constants.SUBJECT_MARKER)
+                .ToList();
+            if (subjects.Count == 0)
+                this.errors.Add(ErrorDefs.MissingMarker(Constants.SUBJECT_MARKER));
+            if (subjects.Count > 1)
+                this.errors.Add(ErrorDefs.MoreThanOneMarker(Constants.SUBJECT_MARKER));
+
+            if (this.errors.Count > 0)
+                return;
+
+            this.subject = subjects[0];
+            var mailTos = this.newPlaceHolders
+                .Where(p => p is DecoratedStringPlaceHolder)
+                .Cast<DecoratedStringPlaceHolder>()
+                .Where(p => p.MarkerName == Constants.MAILTO_MARKER)
+                .ToList();
+            if (mailTos.Count == 0)
+                this.errors.Add(ErrorDefs.MissingMarker(Constants.MAILTO_MARKER));
+
             //this.templateDoc.SaveAs2(@"C:\Users\erikb\Desktop\test.docx");
             }
         finally
@@ -175,47 +185,24 @@ internal class DocBuilder
         return values;
         }
 
-    private void CheckMarkerFilesExist()
-        {
-        List<string> includedFilesFieldNames = this.markerDefs
-            .Where(markerDef => 
-                {
-                    string[] markers = [Constants.ATTACH_MARKER, Constants.INSERT_MARKER];
-                    return markers.Contains(markerDef.MarkerTag);
-                })
-            .SelectMany(def => def.Fields).ToList();
-        List<int> fieldIndexes = [];
-        foreach (var fieldName in includedFilesFieldNames)
-        {
-            int index = this.excelData.Headers.IndexOf(fieldName); //todo: put field indexes in MarkerDef?
-            if(index < 0)
-            {
-                this.errors.Add($"Field {fieldName} not found."); //todo: perhaps move this check to the other fields check.
-                continue;
-            }
-            fieldIndexes.Add(index);
-        }
-        List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(fieldIndexes);
-
-        foreach (string originalFilePath in includedFilePaths)
-            {
-            string? generatedPath = this.FindAbsolutePath(originalFilePath);
-            if (generatedPath is null)
-                {
-                this.errors.Add($"File to include not found: {originalFilePath}");
-                continue;
-                }
-            }
-        }
-    
     private void OpenIncludedFiles()
         {
-        var fieldIndexes = this.markerDefs
-            .Where(markerDef => markerDef.MarkerTag == Constants.INSERT_MARKER)
-            .SelectMany(def => def.Fields).ToList()
-            .Select(fieldName => this.excelData.Headers.IndexOf(fieldName));
+        var fieldIndexes = this.newPlaceHolders
+            .Where(p => p is FilesPlaceHolder)
+            .Cast<FilesPlaceHolder>()
+            .SelectMany(p => p.DecoratedString.Inserts.Select(i => i.Index));
 
         List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(fieldIndexes);
+
+        int errorCount = this.errors.Count;
+
+        includedFilePaths
+            .Where(path => this.FindAbsolutePath(path) is null)
+            .ToList()
+            .ForEach(path => this.errors.Add($"File to include not found: {path}"));
+
+        if (errorCount > this.errors.Count)
+            return;
 
         foreach (string originalFilePath in includedFilePaths)
             {
@@ -239,20 +226,6 @@ internal class DocBuilder
         }
 
     private Dictionary<string, string> absolutePaths = [];
-
-    private DecoratedString? GetUniqueDecoratedStringMarkers(Word.Document doc, string marker)
-        {
-        var markers = this.markerDefs.FindAll(m => m.MarkerTag == marker);
-        if (markers is not null)
-            {
-            if (markers.Count > 1)
-                this.errors.Add($"Multiple {marker} markers found. Only one is allowed.");
-            var markerDef = new DecoratedString(markers[0].PlaceHolder.InnerText, this.excelData.Headers);
-            return markerDef;
-            }
-        return null;
-        }
-
 
     public static string MergedDocsDir => Path.Combine(Path.GetTempPath(), Constants.APP_NAME, "Merged");
 
@@ -310,14 +283,12 @@ internal class DocBuilder
             {
             foreach (var placeHolder in this.newPlaceHolders)
                 {
-                Word.Range range = doc.Range(placeHolder.Pos);
+                Word.Range range = doc.Range(placeHolder.Pos, placeHolder.Pos);
 
                 if (placeHolder is FieldPlaceHolder fieldPlaceHolder)
                     fieldPlaceHolder.Replace(range, excelData.GetRow(rowIndex));
                 else if(placeHolder is FilesPlaceHolder filesPlaceHolder)
-                    filesPlaceHolder.Replace(range, excelData.GetRow(rowIndex));
-
-
+                    filesPlaceHolder.Replace(range, excelData.GetRow(rowIndex), this.insertDocs);
                 }
             foreach (Word.Range storyRange in doc.StoryRanges)
                 {
@@ -351,14 +322,18 @@ internal class DocBuilder
             doc.Variables.Add(Constants.VAR_ATTACHMENTS, string.Join(";", attachments));
             if (this.subject is not null)
                 {
-                string subjectDecorated = this.subject.Decorate(excelData.GetRow(rowIndex));
+                string subjectDecorated = this.subject.DecoratedString.Decorate(excelData.GetRow(rowIndex));
                 doc.Variables.Add(Constants.VAR_SUBJECT, subjectDecorated);
                 }
-            if (this.mailTo is not null)
-                {
-                string mailToDecorated = this.mailTo.Decorate(excelData.GetRow(rowIndex));
-                doc.Variables.Add(Constants.VAR_RECIPIENTS, mailToDecorated);
-                }
+
+            var mailTos = this.newPlaceHolders
+                .Where(p => p is DecoratedStringPlaceHolder)
+                .Cast<DecoratedStringPlaceHolder>()
+                .Where(p => p.MarkerName == Constants.MAILTO_MARKER)
+                .ToList()
+                .Select(m => m.GetFieldValues(this.excelData.GetRow(rowIndex)));
+
+            doc.Variables.Add(Constants.VAR_RECIPIENTS, string.Join(";", mailTos));
             this.wordToEmail.SaveDoc(doc, fullName);
             }
         finally
@@ -434,18 +409,6 @@ internal class DocBuilder
         return new Section { StartMarker = sectionStartMarker.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
         }
 
-
-    private HashSet<string> GetFieldNames()
-        {
-        HashSet<string> fieldNames = [];
-        foreach (var placeHolder in this.newPlaceHolders)
-            {
-            if (placeHolder.Type == PlaceHolderType.Field)
-                fieldNames.Add(placeHolder.FieldName);
-            }
-        return fieldNames;
-        }
-
     public void CloseAll()
         {
         foreach (var doc in this.insertDocs.Values)
@@ -485,12 +448,4 @@ public class Section
             }
         }
 
-    }
-
-internal class MarkerDef
-    {
-    public required NewPlaceHolderDef PlaceHolder; //todo: probably not needed
-    public List<string> Fields = [];
-    public required string MarkerTag;
-    public List<int> FieldIndexes = [];
     }

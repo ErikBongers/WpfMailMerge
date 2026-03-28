@@ -1,16 +1,17 @@
-﻿using Word = Microsoft.Office.Interop.Word;
+﻿using Microsoft.Office.Interop.Word;
+using Word = Microsoft.Office.Interop.Word;
 
 namespace WpfMailMerge;
 
 internal enum PlaceHolderType { Field, Marker }
-internal abstract class NewPlaceHolderDef
+internal abstract class PlaceHolderDef
     {
     public PlaceHolderType Type { get; private set; }
     public string InnerText { get; private set; }
     public int Pos { get; private set; }
     public List<string> Errors = [];
 
-    public NewPlaceHolderDef(PlaceHolderType type, Section section)
+    public PlaceHolderDef(PlaceHolderType type, Section section)
         {
         this.Type = type;
         this.InnerText = section.InbetweenRange.Text;
@@ -18,7 +19,7 @@ internal abstract class NewPlaceHolderDef
         }
     }
 
-internal class FieldPlaceHolder : NewPlaceHolderDef
+internal class FieldPlaceHolder : PlaceHolderDef
     {
     public bool IsList { get; private set; }
     public int FieldIndex { get; private set; }
@@ -41,7 +42,7 @@ internal class FieldPlaceHolder : NewPlaceHolderDef
         }
     }
 
-internal abstract class MarkerPlaceHolder : NewPlaceHolderDef
+internal abstract class MarkerPlaceHolder : PlaceHolderDef
     {
     public string MarkerName { get; private set; }
     public string MarkerText { get; private set; }
@@ -64,6 +65,11 @@ internal class DecoratedStringPlaceHolder : MarkerPlaceHolder
         {
         this.DecoratedString = new DecoratedString(this.MarkerText.Substring(this.MarkerName.Length), fieldNames);
         this.Errors.AddRange(this.DecoratedString.Errors);
+        }
+
+    public IEnumerable<string> GetFieldValues(List<string> row)
+        {
+        return this.DecoratedString.Inserts.Select(i => row[i.Pos]);
         }
     }
 
@@ -95,7 +101,12 @@ internal class FilesPlaceHolder : FieldsMarkerPlaceHolder
 
             Word.Document? insertDoc = null;
             if (!docs.TryGetValue(fileName, out insertDoc))
+                { 
                 this.Errors.Add(ErrorDefs.CanNotOpenFile(fileName));
+                continue;
+                }
+            range.FormattedText = insertDoc.Content.FormattedText;
+            range.Collapse(WdCollapseDirection.wdCollapseStart);
             }
         }
     }

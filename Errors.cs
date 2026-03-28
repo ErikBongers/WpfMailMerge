@@ -12,5 +12,7 @@ namespace WpfMailMerge
         public static string OnlyFieldsWithoutTextExpected (string markerText) { return $"Found text mixed with fields in field-only marker: \"{markerText}\""; }
         public static string UnknownMarker (string marker) { return $"Unknown marker: \"%%{marker}\""; }
         public static string CanNotOpenFile(string fileName) { return $"Cannot open file \"{fileName}\""; }
+        public static string MoreThanOneMarker(string marker) { return $"Found more than one \"{marker}\" marker."; }
+        public static string MissingMarker(string marker) { return $"Missing \"{marker}\" marker."; }
         }
     }
