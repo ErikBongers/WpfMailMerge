@@ -117,3 +117,33 @@ internal class FilesPlaceHolder : FieldsMarkerPlaceHolder
         return range.Start;
         }
     }
+
+internal class BeginSectionPlaceHolder : MarkerPlaceHolder
+    {
+    public EndSectionPlaceHolder? EndSectionPlaceHolder;
+    public BeginSectionPlaceHolder(Section section) : base(section)
+        {
+        }
+
+    public IEnumerable<PlaceHolderDef> GetInnerPlaceHolders(IEnumerable<PlaceHolderDef> allPlaceHolders)
+        {
+        if (this.EndSectionPlaceHolder is null)
+            return [];
+        return allPlaceHolders.Where(p => p.Pos > this.Pos && p.Pos < this.EndSectionPlaceHolder.Pos);
+        }
+    }
+
+internal class EndSectionPlaceHolder : MarkerPlaceHolder
+    {
+    public BeginSectionPlaceHolder? BeginSectionPlaceHolder;
+    public EndSectionPlaceHolder(Section section) : base(section)
+        {
+        }
+
+    public IEnumerable<PlaceHolderDef> GetInnerPlaceHolders(IEnumerable<PlaceHolderDef> allPlaceHolders)
+        {
+        if (this.BeginSectionPlaceHolder is null)
+            return [];
+        return BeginSectionPlaceHolder.GetInnerPlaceHolders(allPlaceHolders);
+        }
+    }
