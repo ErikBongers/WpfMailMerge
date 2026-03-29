@@ -97,7 +97,7 @@ internal class DocBuilder
 
             OpenIncludedFiles();
 
-            //this.templateDoc.SaveAs2(@"C:\Users\erikb\Desktop\test.docx");
+            this.templateDoc.SaveAs2(@"C:\Users\erikb\Desktop\test.docx");
             }
         finally
             {
@@ -130,9 +130,15 @@ internal class DocBuilder
                     else if (innerText.StartsWith(Constants.MAILTO_MARKER))
                         this.placeHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
                     else if (innerText.StartsWith(Constants.COLLAPSE_MARKER))
+                        {
                         this.placeHolders.Add(new BeginSectionPlaceHolder(section));
+                        formattingKeepingText = "_";
+                        }
                     else if (innerText.StartsWith(Constants.END_COLLAPSE_MARKER))
+                        {
                         this.placeHolders.Add(new EndSectionPlaceHolder(section));
+                        formattingKeepingText = "_";
+                        }
                     else
                         errors.Add(ErrorDefs.UnknownMarker(innerText.FirstWord()));
                     }
@@ -294,6 +300,8 @@ internal class DocBuilder
                     replacedUpToPos = fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), excelData.GetRow(rowIndex)); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
                 else if (placeHolder is FilesPlaceHolder filesPlaceHolder)
                     replacedUpToPos = filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), excelData.GetRow(rowIndex), this.insertDocs);
+                else if (placeHolder is BeginSectionPlaceHolder beginSection)
+                    replacedUpToPos = beginSection.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1));
                 else if (placeHolder is EndSectionPlaceHolder endSection)
                     replacedUpToPos = endSection.Replace(doc, this.placeHolders, excelData.GetRow(rowIndex));
                 }

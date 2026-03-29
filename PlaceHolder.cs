@@ -143,6 +143,12 @@ internal class BeginSectionPlaceHolder : MarkerPlaceHolder
             return [];
         return allPlaceHolders.Where(p => p.Pos > this.Pos && p.Pos < this.EndSectionPlaceHolder.Pos);
         }
+    
+    public int Replace(Word.Range range)
+        {
+        range.Delete();
+        return range.Start;
+        }
     }
 
 internal class EndSectionPlaceHolder : MarkerPlaceHolder
@@ -164,10 +170,14 @@ internal class EndSectionPlaceHolder : MarkerPlaceHolder
         var innerPlaceHolders = this.GetInnerPlaceHolders(allPlaceHolders);
         bool hasValues = innerPlaceHolders.Any(p => !p.HasOnlyEmptyValues(row));
         if (hasValues)
+            {
+            Word.Range range = doc.Range(this.Pos, this.Pos+1); //+1 for placeholder!
+            range.Delete();
             return this.Pos;
+            }
 
-        Word.Range fullRange = doc.Range(this.BeginSectionPlaceHolder!.Pos, this.Pos);
-        fullRange.Delete();
-        return this.BeginSectionPlaceHolder!.Pos;
+        Word.Range collapseRange = doc.Range(this.BeginSectionPlaceHolder!.Pos+1, this.Pos+1); //first +1 is to NOT delete the Begin placeholder, the 2nd +1 is to delete the End placeholder.
+        collapseRange.Delete();
+        return this.BeginSectionPlaceHolder!.Pos+1; //+1 because the begin placeholder still has to be deleted.
         }
     }
