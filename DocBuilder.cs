@@ -289,13 +289,13 @@ internal class DocBuilder
                     continue; //skip placeholders until we are below replacedUpToPos 
 
                 if (placeHolder is FieldPlaceHolder fieldPlaceHolder)
-                    replacedUpToPos = fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), excelData.GetRow(rowIndex), excelData); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
+                    replacedUpToPos = fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), this.excelData.GetRow(rowIndex), this.excelData); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
                 else if (placeHolder is FilesPlaceHolder filesPlaceHolder)
-                    replacedUpToPos = filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), excelData.GetRow(rowIndex), this.insertDocs);
+                    replacedUpToPos = filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), this.excelData.GetRow(rowIndex), this.insertDocs, this.excelData);
                 else if (placeHolder is BeginSectionPlaceHolder beginSection)
                     replacedUpToPos = beginSection.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1));
                 else if (placeHolder is EndSectionPlaceHolder endSection)
-                    replacedUpToPos = endSection.Replace(doc, this.placeHolders, excelData.GetRow(rowIndex));
+                    replacedUpToPos = endSection.Replace(doc, this.placeHolders, this.excelData.GetRow(rowIndex));
                 }
 
             //Add email variables (attachments, subject, mailto).

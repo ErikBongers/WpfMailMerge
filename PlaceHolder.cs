@@ -153,21 +153,32 @@ public class FilesPlaceHolder : FieldsMarkerPlaceHolder
     public FilesPlaceHolder(Section section, List<string> fieldNames, ExcelData excelData)
         : base(section, fieldNames, excelData) { }
 
-    public int Replace(Word.Range range, List<string> row, Dictionary<string, Word.Document> docs)
+    public int Replace(Word.Range range, List<string> row, Dictionary<string, Word.Document> docs, ExcelData excelData)
         {
-        var indexList = this.DecoratedString.Inserts
-            .OrderByDescending(i => i.Pos)
-            .Select(i => i.Index);
-        foreach (var fieldIndex in indexList)
+        var insertList = this.DecoratedString.Inserts
+            .OrderByDescending(i => i.Pos);
+         
+        foreach (var insert in insertList)
             {
-            var fileName = row[fieldIndex];
+            string fileName = "";
+            if (insert.SubFieldIndex is null)
+                fileName = row[insert.Index];
+            else
+                {
+                var key = row[insert.Index]; //todo: this code is repeated a lot. Put it in Insert class? Including the if-statement above.
+                if (key == "")
+                    continue;
+                var linkedData = excelData.LinkedData[insert.Index];
+                var linkedRow = linkedData.GetRow(key);
+                fileName = linkedRow[(int)insert.SubFieldIndex];
+                }
             if (fileName == "")
                 continue;
 
             Word.Document? insertDoc = null;
             if (!docs.TryGetValue(fileName, out insertDoc))
                 { 
-                this.Errors.Add(ErrorDefs.CanNotOpenFile(fileName));
+                this.Errors.Add(ErrorDefs.CanNotOpenFile(fileName)); //todo: escalate this error.
                 continue;
                 }
             range.FormattedText = insertDoc.Content.FormattedText;
