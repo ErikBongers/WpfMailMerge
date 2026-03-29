@@ -18,7 +18,7 @@ internal class DocBuilder
     private Word.Document templateDoc;
     private List<PlaceHolderDef> placeHolders = [];
     private Dictionary<string, Word.Document> insertDocs = [];
-    private List<int> attachmentIndices = [];
+    private List<FilesPlaceHolder> attachmentPlaceHolders = [];
     private List<int> mailToIndices = [];
     private DecoratedStringPlaceHolder? subject;
     private Word.Documents documents;
@@ -84,12 +84,10 @@ internal class DocBuilder
                 .SelectMany(m => m.GetFieldIndices())
                 .ToList();
 
-            this.attachmentIndices = this.placeHolders
+            this.attachmentPlaceHolders = this.placeHolders
                 .Where(p => p is FilesPlaceHolder)
                 .Cast<FilesPlaceHolder>()
                 .Where(p => p.MarkerName == Constants.ATTACH_MARKER)
-                .ToList()
-                .SelectMany(m => m.GetFieldIndices())
                 .ToList();
 
             if (this.errors.Count > 0)
@@ -125,11 +123,11 @@ internal class DocBuilder
                     {
                     var innerText = section.InbetweenRange.Text;
                     if (innerText.StartsWith(Constants.INSERT_MARKER) || innerText.StartsWith(Constants.ATTACH_MARKER))
-                        newPlaceHolder = new FilesPlaceHolder(section, this.excelData.Headers);
+                        newPlaceHolder = new FilesPlaceHolder(section, this.excelData.Headers, this.excelData);
                     else if (innerText.StartsWith(Constants.SUBJECT_MARKER))
-                        newPlaceHolder = new DecoratedStringPlaceHolder(section, this.excelData.Headers);
+                        newPlaceHolder = new DecoratedStringPlaceHolder(section, this.excelData.Headers, this.excelData);
                     else if (innerText.StartsWith(Constants.MAILTO_MARKER))
-                        newPlaceHolder = new FieldsMarkerPlaceHolder(section, this.excelData.Headers);
+                        newPlaceHolder = new FieldsMarkerPlaceHolder(section, this.excelData.Headers, this.excelData);
                     else if (innerText.StartsWith(Constants.COLLAPSE_MARKER))
                         {
                         newPlaceHolder = new BeginSectionPlaceHolder(section);
@@ -211,17 +209,17 @@ internal class DocBuilder
 
     private void CheckFiles()
         {
-        var fieldIndexes = this.placeHolders
+        var filePlaceHolders = this.placeHolders
             .Where(p => p is FilesPlaceHolder)
-            .Cast<FilesPlaceHolder>()
-            .SelectMany(p => p.DecoratedString.Inserts.Select(i => i.Index));
+            .Cast<FilesPlaceHolder>();
+         
 
-        List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(fieldIndexes);
+        List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(filePlaceHolders, this.excelData);
 
         includedFilePaths
             .Where(path => Tools.FindAbsolutePath(path, this.excelData.GetDataDir()) is null)
             .ToList()
-            .ForEach(path => this.errors.Add($"File to include not found: {path}"));
+            .ForEach(path => this.errors.Add(ErrorDefs.FileToIncludeNotFound(path)));
 
         if (this.errors.Count > 0)
             return;
@@ -235,23 +233,12 @@ internal class DocBuilder
 
     private void OpenIncludedFiles()
         {
-        var fieldIndexes = this.placeHolders
+        var filePlaceHolders = this.placeHolders
             .Where(p => p is FilesPlaceHolder)
             .Cast<FilesPlaceHolder>()
-            .Where(p => p.MarkerName == Constants.INSERT_MARKER)
-            .SelectMany(p => p.DecoratedString.Inserts.Select(i => i.Index));
+            .Where(p => p.MarkerName == Constants.INSERT_MARKER);
 
-        List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(fieldIndexes);
-
-        int errorCount = this.errors.Count;
-
-        includedFilePaths
-            .Where(path => Tools.FindAbsolutePath(path, this.excelData.GetDataDir()) is null)
-            .ToList()
-            .ForEach(path => this.errors.Add($"File to include not found: {path}"));
-
-        if (errorCount > this.errors.Count)
-            return;
+        List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(filePlaceHolders, this.excelData);
 
         foreach (string originalFilePath in includedFilePaths)
             {
@@ -302,7 +289,7 @@ internal class DocBuilder
                     continue; //skip placeholders until we are below replacedUpToPos 
 
                 if (placeHolder is FieldPlaceHolder fieldPlaceHolder)
-                    replacedUpToPos = fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), excelData.GetRow(rowIndex)); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
+                    replacedUpToPos = fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), excelData.GetRow(rowIndex), excelData); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
                 else if (placeHolder is FilesPlaceHolder filesPlaceHolder)
                     replacedUpToPos = filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), excelData.GetRow(rowIndex), this.insertDocs);
                 else if (placeHolder is BeginSectionPlaceHolder beginSection)
@@ -313,11 +300,12 @@ internal class DocBuilder
 
             //Add email variables (attachments, subject, mailto).
             List<string> attachments = [];
-            foreach (var idx in this.attachmentIndices)
+            foreach (var attachementPlaceHolder in this.attachmentPlaceHolders)
                 {
-                string filePath = excelData.GetRow(rowIndex)[idx];
-                if (!string.IsNullOrWhiteSpace(filePath))
-                    attachments.Add(this.absolutePaths[filePath]);
+                var values = attachementPlaceHolder.GetFieldValues(this.excelData.GetRow(rowIndex), this.excelData);
+                foreach(var value in values)
+                    if (!string.IsNullOrWhiteSpace(value))
+                        attachments.Add(this.absolutePaths[value]);
                 }
             attachments = attachments.Distinct().ToList();
             doc.Variables.Add(Constants.VAR_ATTACHMENTS, string.Join(";", attachments));
@@ -327,7 +315,7 @@ internal class DocBuilder
                 doc.Variables.Add(Constants.VAR_SUBJECT, subjectDecorated);
                 }
 
-            var mailTos = string.Join(";", this.mailToIndices.Select(i => excelData.GetRow(i)));
+            var mailTos = string.Join(";", this.mailToIndices.Select(i => excelData.GetRow(rowIndex)[i]));
 
             doc.Variables.Add(Constants.VAR_RECIPIENTS, string.Join(";", mailTos));
             this.wordToEmail.SaveDoc(doc, fullName);

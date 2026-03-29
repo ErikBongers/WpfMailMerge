@@ -326,21 +326,19 @@ public class ExcelData
         this.rows = this.rows.Take(max).ToList();
         }
 
-    public List<string> GetUniqueColumnValues(IEnumerable<int> indices)
+    public List<string> GetUniqueColumnValues(IEnumerable<FilesPlaceHolder> filePlaceHolders, ExcelData excelData)
         {
         return [..this.Rows.SelectMany(row =>
             {
-                List<string> values = [];
-                foreach (int index in indices)
+                List<string> allValues = [];
+                foreach (var filePlaceHolder in filePlaceHolders)
                     {
-                    if (index < row.Count)
-                        {
-                        string value = row[index];
-                        if (!string.IsNullOrWhiteSpace(value))
-                            values.Add(value);
-                        }
+                    var fieldValues = filePlaceHolder.GetFieldValues(row, excelData);
+                    foreach(var fieldValue in fieldValues)
+                        if (!string.IsNullOrWhiteSpace(fieldValue))
+                            allValues.Add(fieldValue);
                     }
-                return values;
+                return allValues;
             }).Distinct()];
         }
     }

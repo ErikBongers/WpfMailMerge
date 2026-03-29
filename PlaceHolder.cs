@@ -3,8 +3,8 @@ using Word = Microsoft.Office.Interop.Word;
 
 namespace WpfMailMerge;
 
-internal enum PlaceHolderType { Field, Marker }
-internal abstract class PlaceHolderDef
+public enum PlaceHolderType { Field, Marker }
+public abstract class PlaceHolderDef
     {
     public PlaceHolderType Type { get; private set; }
     public string InnerText { get; private set; }
@@ -21,13 +21,15 @@ internal abstract class PlaceHolderDef
     public virtual bool HasOnlyEmptyValues(List<string> row)  { return false; }
     }
 
-internal record FieldDef(string Name, bool IsList, string? SubFieldName);
+public record FieldDef(string Name, bool IsList, string? SubFieldName);
 
 internal class FieldPlaceHolder : PlaceHolderDef
     {
     public bool IsList { get; private set; }
     public int FieldIndex { get; private set; }
     public string FieldName { get; private set; } //only for testing
+    public int? SubFieldIndex { get; private set; }
+    public string? SubFieldName { get; private set; } //only for testing
 
     public FieldPlaceHolder(Section section, ExcelData excelData)
         : base(PlaceHolderType.Field, section)
@@ -35,17 +37,34 @@ internal class FieldPlaceHolder : PlaceHolderDef
         FieldDef fieldDef = ParseFieldDef(this.InnerText);
         this.FieldName = fieldDef.Name;
         this.FieldIndex = excelData.Headers.FindIndex(h => h == this.FieldName);
-        if(this.FieldIndex == -1)
+        this.IsList = fieldDef.IsList; //todo: just include the FieldDef instead of copying all the values.
+        if (this.FieldIndex == -1)
             this.Errors.Add(ErrorDefs.FieldNotFound(this.FieldName));
-        if(fieldDef.SubFieldName is not null)
+        if (fieldDef.SubFieldName is not null)
             {
-
+            var linkedData = excelData.LinkedData[this.FieldIndex];
+            var subIndex = linkedData.Headers.IndexOf(fieldDef.SubFieldName);
+            if (this.FieldIndex == -1)
+                {
+                this.Errors.Add(ErrorDefs.FieldNotFound(fieldDef.SubFieldName)); //todo: make a more custom error for linked fields.
+                return;
+                }
+            this.SubFieldName = fieldDef.SubFieldName;
+            this.SubFieldIndex = subIndex;
             }
         }
 
-    public int Replace(Word.Range range, List<string> row)
+    public int Replace(Word.Range range, List<string> row, ExcelData excelData)
         {
-        range.Text = row[this.FieldIndex];
+        if (this.SubFieldIndex is null)
+            {
+            range.Text = row[this.FieldIndex];
+            return range.Start;
+            }
+        var key = row[this.FieldIndex];
+        LinkedExcelData linkedData = excelData.LinkedData[this.FieldIndex];
+        var linkedRow = linkedData.GetRow(key);
+        var value = linkedRow[(int)this.SubFieldIndex];
         return range.Start;
         }
 
@@ -68,7 +87,7 @@ internal class FieldPlaceHolder : PlaceHolderDef
         }
     }
 
-internal abstract class MarkerPlaceHolder : PlaceHolderDef
+public abstract class MarkerPlaceHolder : PlaceHolderDef
     {
     public string MarkerName { get; private set; }
     public string MarkerText { get; private set; }
@@ -82,14 +101,14 @@ internal abstract class MarkerPlaceHolder : PlaceHolderDef
         }
     }
 
-internal class DecoratedStringPlaceHolder : MarkerPlaceHolder
+public class DecoratedStringPlaceHolder : MarkerPlaceHolder
     {
     public DecoratedString DecoratedString { get; private set; }
 
-    public DecoratedStringPlaceHolder(Section section, List<string> fieldNames)
+    public DecoratedStringPlaceHolder(Section section, List<string> fieldNames, ExcelData excelData)
         : base(section)
         {
-        this.DecoratedString = new DecoratedString(this.MarkerText, fieldNames);
+        this.DecoratedString = new DecoratedString(this.MarkerText, fieldNames, excelData);
         this.Errors.AddRange(this.DecoratedString.Errors);
         }
 
@@ -98,9 +117,19 @@ internal class DecoratedStringPlaceHolder : MarkerPlaceHolder
         return this.DecoratedString.Inserts.Select(i => i.Index);
         }
     
-    public IEnumerable<string> GetFieldValues(List<string> row)
+    public IEnumerable<string> GetFieldValues(List<string> row, ExcelData excelData)
         {
-        return this.DecoratedString.Inserts.Select(i => row[i.Index]);
+        return this.DecoratedString.Inserts.Select(insert => {
+            if (insert.SubFieldIndex is null)
+                return row[insert.Index];
+            else
+                {
+                var key = row[insert.Index];
+                var linkedData = excelData.LinkedData[insert.Index];
+                var linkedRow = linkedData.GetRow(key);
+                return linkedRow[(int)insert.SubFieldIndex];
+                }
+            });
         }
 
     public override bool HasOnlyEmptyValues(List<string> row)
@@ -109,20 +138,20 @@ internal class DecoratedStringPlaceHolder : MarkerPlaceHolder
         }
     }
 
-internal class FieldsMarkerPlaceHolder : DecoratedStringPlaceHolder
+public class FieldsMarkerPlaceHolder : DecoratedStringPlaceHolder
     {
-    public FieldsMarkerPlaceHolder(Section section, List<string> fieldNames)
-        : base(section, fieldNames)
+    public FieldsMarkerPlaceHolder(Section section, List<string> fieldNames, ExcelData excelData)
+        : base(section, fieldNames, excelData)
         {
         if (!this.DecoratedString.IsFieldsWithoutText())
             this.Errors.Add(ErrorDefs.OnlyFieldsWithoutTextExpected(section.OuterRange.Text));
         }
     }
 
-internal class FilesPlaceHolder : FieldsMarkerPlaceHolder
+public class FilesPlaceHolder : FieldsMarkerPlaceHolder
     {
-    public FilesPlaceHolder(Section section, List<string> fieldNames)
-        : base(section, fieldNames) { }
+    public FilesPlaceHolder(Section section, List<string> fieldNames, ExcelData excelData)
+        : base(section, fieldNames, excelData) { }
 
     public int Replace(Word.Range range, List<string> row, Dictionary<string, Word.Document> docs)
         {

@@ -1,3 +1,6 @@
+* Remove email academiestudent from data.
+
+* DecorateStrings.Decorate() : expand to linkedData!
 * MasterData contains a list of linked tables.
   > A FieldPlaceHolder knows the index of
     - the master fielfd
@@ -22,6 +25,9 @@ They are interpreted as lists if there is an asterisk in the placeholder.
 
 
 * Test nested collapses.
+
+* Add %%SET FIELD_SEPARATOR #%%
+  > to allow settings set within the template.
 
 * test with multiple inserted docs per row.
   > make the docs a bit smaller perhaps.
