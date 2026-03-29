@@ -12,6 +12,10 @@ Nested COLLAPSEs
 * test with multiple inserted docs per row.
   > make the docs a bit smaller perhaps.
 
+* remove SUBJECT placeholders from list.
+  > rename list to...not ALL_placeHolders, because it's no longer all of them.
+  > Allow DecoratedStringPlaceHolder to return HasOnlyEmptyValues() based on field values.
+
 Link with a list field
 -----------------------
 > How do we know it's a bloody list field???

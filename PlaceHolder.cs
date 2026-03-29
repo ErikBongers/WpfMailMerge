@@ -17,6 +17,8 @@ internal abstract class PlaceHolderDef
         this.InnerText = section.InbetweenRange.Text;
         this.Pos = section.StartMarker.Start;
         }
+
+    public virtual bool HasOnlyEmptyValues(List<string> row)  { return false; }
     }
 
 internal class FieldPlaceHolder : PlaceHolderDef
@@ -40,6 +42,11 @@ internal class FieldPlaceHolder : PlaceHolderDef
         {
         range.Text = row[this.FieldIndex];
         return range.Start;
+        }
+
+    public override bool HasOnlyEmptyValues(List<string> row)
+        {
+        return row[this.FieldIndex].Trim().Length == 0;
         }
     }
 
@@ -76,6 +83,11 @@ internal class DecoratedStringPlaceHolder : MarkerPlaceHolder
     public IEnumerable<string> GetFieldValues(List<string> row)
         {
         return this.DecoratedString.Inserts.Select(i => row[i.Index]);
+        }
+
+    public override bool HasOnlyEmptyValues(List<string> row)
+        {
+        return this.DecoratedString.Inserts.All(i => row[i.Index].Trim().Length == 0);
         }
     }
 
@@ -145,5 +157,17 @@ internal class EndSectionPlaceHolder : MarkerPlaceHolder
         if (this.BeginSectionPlaceHolder is null)
             return [];
         return BeginSectionPlaceHolder.GetInnerPlaceHolders(allPlaceHolders);
+        }
+
+    public int Replace(Word.Document doc, IEnumerable<PlaceHolderDef> allPlaceHolders, List<string> row)
+        {
+        var innerPlaceHolders = this.GetInnerPlaceHolders(allPlaceHolders);
+        bool hasValues = innerPlaceHolders.Any(p => !p.HasOnlyEmptyValues(row));
+        if (hasValues)
+            return this.Pos;
+
+        Word.Range fullRange = doc.Range(this.BeginSectionPlaceHolder!.Pos, this.Pos);
+        fullRange.Delete();
+        return this.BeginSectionPlaceHolder!.Pos;
         }
     }

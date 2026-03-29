@@ -292,8 +292,10 @@ internal class DocBuilder
 
                 if (placeHolder is FieldPlaceHolder fieldPlaceHolder)
                     replacedUpToPos = fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), excelData.GetRow(rowIndex)); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
-                else if(placeHolder is FilesPlaceHolder filesPlaceHolder)
+                else if (placeHolder is FilesPlaceHolder filesPlaceHolder)
                     replacedUpToPos = filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), excelData.GetRow(rowIndex), this.insertDocs);
+                else if (placeHolder is EndSectionPlaceHolder endSection)
+                    replacedUpToPos = endSection.Replace(doc, this.placeHolders, excelData.GetRow(rowIndex));
                 }
 
             //Add email variables (attachments, subject, mailto).
