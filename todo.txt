@@ -1,3 +1,10 @@
+* MasterData contains a list of linked tables.
+  > A FieldPlaceHolder knows the index of
+    - the master fielfd
+    - the linked table
+      > the linked tables are in a dict, where the key is the index of the master column.
+    - the linked field
+
 Linking fields (sub fields)
 ------------------------------
 A field like

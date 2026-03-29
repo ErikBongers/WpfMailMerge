@@ -118,7 +118,7 @@ internal class DocBuilder
                     break;
                 if (section.StartMarker.Text == "{{")
                     {
-                    newPlaceHolder = new FieldPlaceHolder(section, this.excelData.Headers);
+                    newPlaceHolder = new FieldPlaceHolder(section, this.excelData);
                     formattingKeepingText = "_";
                     }
                 else //marker

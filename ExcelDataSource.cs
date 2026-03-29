@@ -238,33 +238,11 @@ internal class ExcelDataSource
 
     private void MergeFiles(ExcelData masterData, LinkedExcelData linkedData)
         {
-        List<int> allMatchingKeyIndexes = [];
         foreach(var header in masterData.Headers.Select((text, i) => new {text, i}))
             {
             string baseHeader = RemoveIndexes(header.text);
             if (baseHeader == linkedData.linkField)
-                allMatchingKeyIndexes.Add(header.i);
-            }
-        int linkedDataKeyIndex = linkedData.Headers.IndexOf(linkedData.linkField);
-        //Add the extra header columns, except the key field.
-        foreach (var masterIndex in allMatchingKeyIndexes)
-            {
-            var masterFieldName = masterData.Headers[masterIndex];
-            foreach (var linkedFieldName in linkedData.Headers)
-                if(linkedFieldName != linkedData.linkField)
-                    masterData.Headers.Add(masterFieldName + "." + linkedFieldName);
-            }
-        foreach (var row in masterData.Rows)
-            {
-            foreach (var masterIndex in allMatchingKeyIndexes)
-                {
-                var linkedRow = linkedData.GetRow(row[masterIndex]);
-                
-                for (int i = 0; i < linkedRow.Count; i++)
-                    if (i != linkedDataKeyIndex) //add fields except the key field.
-                        row.Add(linkedRow[i]);
-
-                }
+                masterData.LinkedData.Add(header.i, linkedData);
             }
         }
 
@@ -294,6 +272,7 @@ public class ExcelData
     public readonly RangeDef rangeDef;
     public readonly List<string> warnings;
     public readonly List<string> errors;
+    public Dictionary<int, LinkedExcelData> LinkedData = [];
 
     public ExcelData(object[,] data, RangeDef rangeDef, List<string> warnings, List<string> errors)
         {
@@ -366,25 +345,26 @@ public class ExcelData
         }
     }
 
-class LinkedExcelData : ExcelData
+public class LinkedExcelData : ExcelData
     {
     public string linkField;
+    public int linkFieldIndex;
     private Dictionary<string, List<string>> dict = [];
     private List<string> nullRow;
     public LinkedExcelData(object[,] data, RangeDef rangeDef, string linkField, List<string> warnings, List<string> errors) 
         : base(data, rangeDef, warnings, errors)
         {
         this.linkField = linkField;
+        this.linkFieldIndex = this.headers.IndexOf(this.linkField);
         this.FillDictionary();
         this.nullRow = this.headers.Select(h => "").ToList();
         }
     
     private void FillDictionary()
         {
-        int keyIndex = this.headers.IndexOf(this.linkField);
         foreach(var row in this.Rows)
             {
-            dict.Add(row[keyIndex], row); //todo: may fail with duplicate key -> report error.
+            dict.Add(row[this.linkFieldIndex], row); //todo: may fail with duplicate key -> report error.
             }
         }
 

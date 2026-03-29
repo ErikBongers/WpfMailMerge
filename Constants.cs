@@ -16,5 +16,6 @@ public static class Constants
     public const string MAILTO_MARKER = "MAILTO";
     public const string COLLAPSE_MARKER = "COLLAPSE";
     public const string END_COLLAPSE_MARKER = "ENDCOLLAPSE";
+    public const char SUBFIELD_SEPARATOR = ';';
     }
 

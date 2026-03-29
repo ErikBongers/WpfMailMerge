@@ -30,12 +30,12 @@ public partial class DecoratedString
 
             int pos = match.Index;
             int index = fieldNames.IndexOf(fieldDef.Name);
+            this.templateText = this.templateText.Remove(pos, match.Length);
             if (index < 0)
                 {
                 this.Errors.Add($"Can't find field {fieldDef.Name}.");
                 continue;
                 }
-            this.templateText = this.templateText.Remove(pos, match.Length);
             this.Inserts.Add(new Insert(pos, index, fieldDef.IsList));
             }
         this.Inserts.Reverse();
