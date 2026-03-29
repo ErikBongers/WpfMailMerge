@@ -52,7 +52,7 @@ internal abstract class MarkerPlaceHolder : PlaceHolderDef
         : base(PlaceHolderType.Marker, section)
         {
         var innerText = section.InbetweenRange.Text;
-        this.MarkerName = innerText.Substring(0, innerText.IndexOf(" "));
+        this.MarkerName = innerText.FirstWord();
         this.MarkerText = innerText.Substring(this.MarkerName.Length);
         }
     }

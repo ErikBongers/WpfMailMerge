@@ -131,7 +131,7 @@ internal class DocBuilder
                     else if (innerText.StartsWith(Constants.END_COLLAPSE_MARKER))
                         { } //todo this.newPlaceHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
                     else
-                        errors.Add(ErrorDefs.UnknownMarker(innerText[..innerText.IndexOf(" ")]));
+                        errors.Add(ErrorDefs.UnknownMarker(innerText.FirstWord()));
                     }
                 searchRange = section.OuterRange;
                 searchRange.Text = formattingKeepingText; // a Delete() or empty text will remove the formating of the original field or marker and may even trim spaces.
