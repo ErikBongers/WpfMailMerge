@@ -15,6 +15,6 @@ public static class Constants
     public const string SUBJECT_MARKER = "SUBJECT";
     public const string MAILTO_MARKER = "MAILTO";
     public const string COLLAPSE_MARKER = "COLLAPSE";
-    public const string END_COLLAPSE_MARKER = "END COLLAPSE";
+    public const string END_COLLAPSE_MARKER = "ENDCOLLAPSE";
     }
 

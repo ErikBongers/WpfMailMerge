@@ -46,6 +46,8 @@ internal class DocBuilder
         try
             {
             ExtractPlaceholders();
+            //do this BEFORE reversing!
+            BuildSectionPlaceHolders(Constants.COLLAPSE_MARKER, Constants.END_COLLAPSE_MARKER);
             this.placeHolders = this.placeHolders.OrderByDescending(p => p.Pos).ToList();
             if (this.errors.Count > 0)
                 return;
@@ -92,6 +94,7 @@ internal class DocBuilder
 
             if (this.errors.Count > 0)
                 return;
+
             OpenIncludedFiles();
 
             //this.templateDoc.SaveAs2(@"C:\Users\erikb\Desktop\test.docx");
@@ -127,9 +130,9 @@ internal class DocBuilder
                     else if (innerText.StartsWith(Constants.MAILTO_MARKER))
                         this.placeHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
                     else if (innerText.StartsWith(Constants.COLLAPSE_MARKER))
-                        { } //todo this.newPlaceHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
+                        this.placeHolders.Add(new BeginSectionPlaceHolder(section));
                     else if (innerText.StartsWith(Constants.END_COLLAPSE_MARKER))
-                        { } //todo this.newPlaceHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
+                        this.placeHolders.Add(new EndSectionPlaceHolder(section));
                     else
                         errors.Add(ErrorDefs.UnknownMarker(innerText.FirstWord()));
                     }
@@ -140,6 +143,56 @@ internal class DocBuilder
             }
         }
     
+    private void BuildSectionPlaceHolders(string startMarker, string endMarker)
+        {
+        //outer scanner :: <other marker>* <section> <other marker>* <eof>
+        //section :: <section start marke> <other marker>* <section end marker>
+        //other marker :: // anything that is not a section begin or end marker
+        //NOTE: every function starts at the current cursor already set.
+        var cursor = new Cursor<PlaceHolderDef>(this.placeHolders.GetEnumerator());
+        cursor.MoveNext();
+        while (true)
+            {
+            SkipToSectionMarker(cursor, [startMarker, endMarker]);
+            if (cursor.Current is null)
+                break;//EOF
+            ParseSection(cursor, startMarker, endMarker);
+            }
+        }
+
+    private void ParseSection(Cursor<PlaceHolderDef> cursor, string startMarker, string endMarker)
+        {
+        if(cursor.Current is BeginSectionPlaceHolder beginHolder)
+            {
+            cursor.Eat();
+            SkipToSectionMarker(cursor, [startMarker, endMarker]);
+            ParseSection(cursor, startMarker, endMarker);
+            if(cursor.Current is EndSectionPlaceHolder endHolder)
+                {
+                beginHolder.EndSectionPlaceHolder = endHolder;
+                endHolder.BeginSectionPlaceHolder = beginHolder;
+                cursor.MoveNext();
+                }
+            else
+                {
+                this.errors.Add(ErrorDefs.SectionWithoutEndMarker(startMarker));
+                return;
+                }
+            }
+        }
+
+    private void SkipToSectionMarker(Cursor<PlaceHolderDef> cursor, List<string> sectionMarkers)
+        {
+        bool IsSectionMarker(PlaceHolderDef placeHolder)
+            {
+            if (placeHolder is MarkerPlaceHolder marker)
+                return sectionMarkers.Contains(marker.MarkerName);
+            return false;
+            }
+
+        cursor.Skip(IsSectionMarker);
+        }
+
     public List<string> GetChecksResults()
         {
         return this.errors;
