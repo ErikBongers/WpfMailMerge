@@ -2,7 +2,7 @@
 
 namespace WpfMailMerge;
 
-public record Insert (int Pos, int Index);
+public record Insert (int Pos, int Index, bool IsList);
 public partial class DecoratedString
     {
     private readonly string orgText;
@@ -25,16 +25,18 @@ public partial class DecoratedString
             Match match = RxFieldPlaceHolder().Match(this.templateText);
             if (!match.Success)
                 break;
-            string foundField = match.Groups[1].Value;
+            string foundFieldDef = match.Groups[1].Value;
+            FieldDef fieldDef = FieldPlaceHolder.ParseFieldDef(foundFieldDef);
+
             int pos = match.Index;
-            int index = fieldNames.IndexOf(foundField);
+            int index = fieldNames.IndexOf(fieldDef.Name);
             if (index < 0)
                 {
-                this.Errors.Add($"Can't find field {foundField}.");
+                this.Errors.Add($"Can't find field {fieldDef.Name}.");
                 continue;
                 }
             this.templateText = this.templateText.Remove(pos, match.Length);
-            this.Inserts.Add(new Insert(pos, index));
+            this.Inserts.Add(new Insert(pos, index, fieldDef.IsList));
             }
         this.Inserts.Reverse();
         }

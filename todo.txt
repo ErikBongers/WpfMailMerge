@@ -1,3 +1,13 @@
+Linking fields (sub fields)
+------------------------------
+A field like
+: key.subfield
+is valid if
+- "key" exists in master table
+- "subfield" exists in the correct linked table.
+same for
+: key*.subfield
+
 List fields
 -----------
 List fields contain multiple values, separated by a semi-colon.
@@ -30,11 +40,11 @@ Link with a list field
         > therefor the data can not be flattened, but needs to stay embedded.
       > user code can then always loop the retured value to do stuff.
 * this field
-: {{lessen*.ExtraInfo}}
+: {{les*.ExtraInfo}}
 > gets translated into
 : {{234.1}}
 ...where 
-  - 234 is the lessen index
+  - 234 is the les index
   - 1 is the linked field index.
   > system should know that 234 links to a specific linked table.
     > have a dict that contains all these indexes and the related linked tables.

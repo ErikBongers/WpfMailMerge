@@ -21,6 +21,8 @@ internal abstract class PlaceHolderDef
     public virtual bool HasOnlyEmptyValues(List<string> row)  { return false; }
     }
 
+internal record FieldDef(string Name, bool IsList, string? SubFieldName);
+
 internal class FieldPlaceHolder : PlaceHolderDef
     {
     public bool IsList { get; private set; }
@@ -30,12 +32,11 @@ internal class FieldPlaceHolder : PlaceHolderDef
     public FieldPlaceHolder(Section section, List<string> fieldNames)
         : base(PlaceHolderType.Field, section)
         {
-        this.IsList = this.InnerText.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
-        string fieldName = this.InnerText.Replace("*", "").Trim();
-        this.FieldName = fieldName; //test only
-        this.FieldIndex = fieldNames.FindIndex(h => h == fieldName);
+        FieldDef fieldDef = ParseFieldDef(this.InnerText);
+        this.FieldName = fieldDef.Name;
+        this.FieldIndex = fieldNames.FindIndex(h => h == this.FieldName);
         if(this.FieldIndex == -1)
-            this.Errors.Add(ErrorDefs.FieldNotFound(fieldName));
+            this.Errors.Add(ErrorDefs.FieldNotFound(this.FieldName));
         }
 
     public int Replace(Word.Range range, List<string> row)
@@ -47,6 +48,19 @@ internal class FieldPlaceHolder : PlaceHolderDef
     public override bool HasOnlyEmptyValues(List<string> row)
         {
         return row[this.FieldIndex].Trim().Length == 0;
+        }
+    public static FieldDef ParseFieldDef(string text)
+        {
+        bool IsList = text.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
+        string fieldName = text.Replace("*", "").Trim();
+        string? subFieldName = null;
+        int dotPos = fieldName.IndexOf('.');
+        if(dotPos >= 0)
+            {
+            subFieldName = fieldName.Substring(dotPos + 1);
+            fieldName = fieldName.Substring(0, dotPos);
+            }
+        return new FieldDef(fieldName, IsList, subFieldName);
         }
     }
 

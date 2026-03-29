@@ -42,4 +42,10 @@
     <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.5" />
   </ItemGroup>
 
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+
 </Project>
