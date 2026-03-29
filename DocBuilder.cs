@@ -112,36 +112,41 @@ internal class DocBuilder
             while (true)
                 {
                 var section = FindNextPlaceHolder(searchRange);
+                PlaceHolderDef? newPlaceHolder = null;
                 string formattingKeepingText = "";
                 if (section is null)
                     break;
                 if (section.StartMarker.Text == "{{")
                     {
-                    this.placeHolders.Add(new FieldPlaceHolder(section, this.excelData.Headers));
+                    newPlaceHolder = new FieldPlaceHolder(section, this.excelData.Headers);
                     formattingKeepingText = "_";
                     }
                 else //marker
                     {
                     var innerText = section.InbetweenRange.Text;
                     if (innerText.StartsWith(Constants.INSERT_MARKER) || innerText.StartsWith(Constants.ATTACH_MARKER))
-                        this.placeHolders.Add(new FilesPlaceHolder(section, this.excelData.Headers));
+                        newPlaceHolder = new FilesPlaceHolder(section, this.excelData.Headers);
                     else if (innerText.StartsWith(Constants.SUBJECT_MARKER))
-                        this.placeHolders.Add(new DecoratedStringPlaceHolder(section, this.excelData.Headers));
+                        newPlaceHolder = new DecoratedStringPlaceHolder(section, this.excelData.Headers);
                     else if (innerText.StartsWith(Constants.MAILTO_MARKER))
-                        this.placeHolders.Add(new FieldsMarkerPlaceHolder(section, this.excelData.Headers));
+                        newPlaceHolder = new FieldsMarkerPlaceHolder(section, this.excelData.Headers);
                     else if (innerText.StartsWith(Constants.COLLAPSE_MARKER))
                         {
-                        this.placeHolders.Add(new BeginSectionPlaceHolder(section));
+                        newPlaceHolder = new BeginSectionPlaceHolder(section);
                         formattingKeepingText = "_";
                         }
                     else if (innerText.StartsWith(Constants.END_COLLAPSE_MARKER))
                         {
-                        this.placeHolders.Add(new EndSectionPlaceHolder(section));
+                        newPlaceHolder = new EndSectionPlaceHolder(section);
                         formattingKeepingText = "_";
                         }
                     else
                         errors.Add(ErrorDefs.UnknownMarker(innerText.FirstWord()));
                     }
+                if (newPlaceHolder?.Errors.Count > 0)
+                    this.errors.AddRange(newPlaceHolder.Errors);
+                if (newPlaceHolder != null)
+                    this.placeHolders.Add(newPlaceHolder);
                 searchRange = section.OuterRange;
                 searchRange.Text = formattingKeepingText; // a Delete() or empty text will remove the formating of the original field or marker and may even trim spaces.
                 searchRange.Collapse(Direction: WdCollapseDirection.wdCollapseStart);

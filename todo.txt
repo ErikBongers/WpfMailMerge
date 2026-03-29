@@ -1,13 +1,10 @@
-Nested COLLAPSEs
--------------------
-> Assembling the collapses needs to be done recursively.
-> Collapse end markers need a pointer to the start marker as we are replacing bottom-up.
-> A Replace() returns the pos up to where things have been replaced.
-  > the loop then just needs to skip to a smaller Pos.
-  > A collapse end marker's Replace() will return:
-    - when no collapse needed: it's own start pos.
-    - when collapsing - the begin marker's start pos.
+List fields
+-----------
+List fields contain multiple values, separated by a semi-colon.
+They are interpreted as lists if there is an asterisk in the placeholder.
 
+
+* Test nested collapses.
 
 * test with multiple inserted docs per row.
   > make the docs a bit smaller perhaps.
@@ -15,6 +12,9 @@ Nested COLLAPSEs
 * remove SUBJECT placeholders from list.
   > rename list to...not ALL_placeHolders, because it's no longer all of them.
   > Allow DecoratedStringPlaceHolder to return HasOnlyEmptyValues() based on field values.
+
+* collapse empty table rows.
+  > gather fields per row and if no values - collapse the row.
 
 Link with a list field
 -----------------------

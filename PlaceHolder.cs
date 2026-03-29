@@ -96,7 +96,7 @@ internal class FieldsMarkerPlaceHolder : DecoratedStringPlaceHolder
     public FieldsMarkerPlaceHolder(Section section, List<string> fieldNames)
         : base(section, fieldNames)
         {
-        if (this.DecoratedString.IsFieldsWithoutText())
+        if (!this.DecoratedString.IsFieldsWithoutText())
             this.Errors.Add(ErrorDefs.OnlyFieldsWithoutTextExpected(section.OuterRange.Text));
         }
     }

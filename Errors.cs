@@ -8,7 +8,7 @@ namespace WpfMailMerge
     {
     internal static class ErrorDefs
         {
-        public static string FieldNotFound(string fieldName) { return $"Field {fieldName} not found"; } //todo: use everywhere.
+        public static string FieldNotFound(string fieldName) { return $"Field \"{fieldName}\" not found"; } //todo: use everywhere.
         public static string OnlyFieldsWithoutTextExpected (string markerText) { return $"Found text mixed with fields in field-only marker: \"{markerText}\""; }
         public static string UnknownMarker (string marker) { return $"Unknown marker: \"%%{marker}\""; }
         public static string CanNotOpenFile(string fileName) { return $"Cannot open file \"{fileName}\""; }
