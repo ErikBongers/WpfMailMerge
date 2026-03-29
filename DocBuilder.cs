@@ -291,7 +291,7 @@ internal class DocBuilder
                 if (placeHolder is FieldPlaceHolder fieldPlaceHolder)
                     replacedUpToPos = fieldPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), this.excelData.GetRow(rowIndex), this.excelData); //todo: perhaps put the formattingPlaceholder (the "_") in the PlaceHolders.
                 else if (placeHolder is FilesPlaceHolder filesPlaceHolder)
-                    replacedUpToPos = filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos), this.excelData.GetRow(rowIndex), this.insertDocs, this.excelData);
+                    replacedUpToPos = filesPlaceHolder.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1), this.excelData.GetRow(rowIndex), this.insertDocs, this.excelData);
                 else if (placeHolder is BeginSectionPlaceHolder beginSection)
                     replacedUpToPos = beginSection.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1));
                 else if (placeHolder is EndSectionPlaceHolder endSection)

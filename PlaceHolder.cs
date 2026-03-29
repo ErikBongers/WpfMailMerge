@@ -65,6 +65,7 @@ internal class FieldPlaceHolder : PlaceHolderDef
         LinkedExcelData linkedData = excelData.LinkedData[this.FieldIndex];
         var linkedRow = linkedData.GetRow(key);
         var value = linkedRow[(int)this.SubFieldIndex];
+        range.Text = value;
         return range.Start;
         }
 
