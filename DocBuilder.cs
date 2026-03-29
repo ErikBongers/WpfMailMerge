@@ -140,74 +140,9 @@ internal class DocBuilder
             }
         }
     
-    private List<int> GetMarkerIndices(Word.Document templateDoc, string startMarker, string endMarker, bool remove)
-        {
-        List<int> indices = [];
-        foreach (Word.Range storyRange in templateDoc.StoryRanges)
-            {
-            var searchRange = storyRange.Duplicate;
-            while (true)
-                {
-                var section = FindSection(searchRange, startMarker, endMarker);
-                if (section == null)
-                    break;
-                string? fieldMarker = section.InbetweenRange.Text;
-                if (fieldMarker is null)
-                    continue;
-                string indexStr = fieldMarker.Replace("{{", "").Replace("}}", "").Trim();
-                if (int.TryParse(indexStr, out int index))
-                    indices.Add(index);
-                else
-                    {
-                    this.errors.Add($"Invalid {startMarker} field marker: {fieldMarker}");
-                    //fall through...
-                    }
-                if (remove)
-                    {
-                    section.OuterRange.Delete();
-                    searchRange = storyRange.Duplicate;
-                    }
-                else
-                    {
-                    searchRange.Start = section.EndMarker.End;
-                    }
-                }
-            }
-        return indices;
-        }
-
     public List<string> GetChecksResults()
         {
         return this.errors;
-        }
-
-    private List<string> GetMarkerValues(Word.Document templateDoc, string startMarker, string endMarker, bool remove) //todo: merge into GetMarkerIndices.
-        {
-        List<string> values = [];
-        foreach (Word.Range storyRange in templateDoc.StoryRanges)
-            {
-            var searchRange = storyRange.Duplicate;
-            while (true)
-                {
-                var section = FindSection(searchRange, startMarker, endMarker);
-                if (section == null)
-                    break;
-                string? fieldMarker = section.InbetweenRange.Text;
-                if (fieldMarker is null)
-                    continue;
-                values.Add(fieldMarker.Trim());
-                if (remove)
-                    {
-                    section.OuterRange.Delete();
-                    searchRange = storyRange.Duplicate;
-                    }
-                else
-                    {
-                    searchRange.Start = section.EndMarker.End;
-                    }
-                }
-            }
-        return values;
         }
 
     private void CheckFiles()
@@ -220,7 +155,7 @@ internal class DocBuilder
         List<string> includedFilePaths = this.excelData.GetUniqueColumnValues(fieldIndexes);
 
         includedFilePaths
-            .Where(path => this.FindAbsolutePath(path) is null)
+            .Where(path => Tools.FindAbsolutePath(path, this.excelData.GetDataDir()) is null)
             .ToList()
             .ForEach(path => this.errors.Add($"File to include not found: {path}"));
 
@@ -229,7 +164,7 @@ internal class DocBuilder
 
         foreach (string originalFilePath in includedFilePaths)
             {
-            string generatedPath = this.FindAbsolutePath(originalFilePath)!;
+            string generatedPath = Tools.FindAbsolutePath(originalFilePath, this.excelData.GetDataDir())!;
             this.absolutePaths[originalFilePath] = generatedPath;
             }
         }
@@ -247,7 +182,7 @@ internal class DocBuilder
         int errorCount = this.errors.Count;
 
         includedFilePaths
-            .Where(path => this.FindAbsolutePath(path) is null)
+            .Where(path => Tools.FindAbsolutePath(path, this.excelData.GetDataDir()) is null)
             .ToList()
             .ForEach(path => this.errors.Add($"File to include not found: {path}"));
 
@@ -258,19 +193,6 @@ internal class DocBuilder
             {
             insertDocs[originalFilePath] = this.documents.Open(this.absolutePaths[originalFilePath], Visible: false, ReadOnly: true);
             }
-        }
-
-    private string? FindAbsolutePath(string originalFilePath)
-        {
-        string generatedPath = originalFilePath;
-        if (!File.Exists(generatedPath))
-            {
-            var dataDir = this.excelData.GetDataDir();
-            generatedPath = Path.Combine(dataDir, originalFilePath);
-            if (!File.Exists(generatedPath))
-                return null;
-            }
-        return generatedPath;
         }
 
     private Dictionary<string, string> absolutePaths = [];
@@ -302,26 +224,6 @@ internal class DocBuilder
         return !hasErrors;
         }
 
-    private List<string> GetFieldsFromString(string text)
-    {
-        int pos = 0;
-        List<string> fields = new List<string>();
-        while (true)
-        {
-            pos = text.IndexOf("{{", pos);
-            if (pos == -1)
-                break;
-            int endPos = text.IndexOf("}}", pos);
-            if (endPos == -1){
-                this.errors.Add("Missing end of field delimiter '}}'.");
-                return fields;
-            }
-            fields.Add(text.Substring(pos+2, endPos - pos-2));
-            pos = endPos + 2;
-        }
-        return fields;
-    }
-    
     public string BuildDoc(int rowIndex)
         {
         string fullName = Path.Combine(this.mergedDocsDir, $"{Constants.MERGED_FILE_PREFIX}{rowIndex}.docx");
