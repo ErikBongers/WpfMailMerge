@@ -96,7 +96,7 @@ internal class DocBuilder
             OpenIncludedFiles();
 
             string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            this.templateDoc.SaveAs2(Path.Combine(desktop, "test.docx");
+            this.templateDoc.SaveAs2(Path.Combine(desktop, "test.docx"));
             }
         finally
             {
