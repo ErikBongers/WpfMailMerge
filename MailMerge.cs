@@ -41,8 +41,16 @@ internal partial class MailMerge
     public int RequestedStartIndex { get; internal set; } = 0;
     public bool HasRecoveredStartIndex { get; private set; } = false;
     private static readonly List<RangeDef> defaultNamedRange = [new RangeDef {BookName="", SheetName="", Name="..", Range="",  RangeType = RangeType.Waiting}];
-    public List<RangeDef> NamedRanges { get; private set; } = defaultNamedRange;
-
+    private List<RangeDef> namedRanges = defaultNamedRange;
+    public List<RangeDef> NamedRanges
+        {
+        get => namedRanges;
+        private set
+            {
+            namedRanges = value;
+            this.NamedRangesChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
     private MailMergeViewModel viewModel;
 
     public MailMerge(MailMergeViewModel viewModel)
@@ -373,7 +381,6 @@ internal partial class MailMerge
             return;
             }
         this.NamedRanges = defaultNamedRange;
-        this.NamedRangesChanged?.Invoke(this, EventArgs.Empty); //todo: put this in the setter?
         }
 
     internal JsonSettings LoadSettings()
