@@ -64,11 +64,11 @@ internal class DocBuilder
                 this.errors.Add(ErrorDefs.MissingMarker(Constants.SUBJECT_MARKER));
             if (subjects.Count > 1)
                 this.errors.Add(ErrorDefs.MoreThanOneMarker(Constants.SUBJECT_MARKER));
-
             if (this.errors.Count > 0)
                 return;
-
             this.subject = subjects[0];
+            this.placeHolders.Remove(this.subject);
+
             var mailTos = this.placeHolders
                 .Where(p => p is DecoratedStringPlaceHolder)
                 .Cast<DecoratedStringPlaceHolder>()
@@ -84,6 +84,7 @@ internal class DocBuilder
                 .ToList()
                 .SelectMany(m => m.GetFieldIndices())
                 .ToList();
+            mailTos.ForEach(p => this.placeHolders.Remove(p));
 
             this.attachmentPlaceHolders = this.placeHolders
                 .Where(p => p is FilesPlaceHolder)
@@ -322,7 +323,7 @@ internal class DocBuilder
                 doc.Variables.Add(Constants.VAR_SUBJECT, subjectDecorated);
                 }
 
-            var mailTos = string.Join(";", this.mailToIndices.Select(i => excelData.GetRow(rowIndex)[i]));
+            var mailTos = string.Join(";", this.mailToIndices.Select(i => excelData.GetRow(rowIndex)[i]));//todo: technically the email addresses could be in linked fields. So we shouldn't be using indexes into main data.
 
             doc.Variables.Add(Constants.VAR_RECIPIENTS, string.Join(";", mailTos));
             this.wordToEmail.SaveDoc(doc, fullName);
