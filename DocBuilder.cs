@@ -164,8 +164,8 @@ internal class DocBuilder
         while (true)
             {
             SkipToSectionMarker(cursor, [startMarker, endMarker]);
-            if (cursor.Current is null)
-                break;//EOF
+            if (cursor.EOF())
+                break;
             ParseSection(cursor, startMarker, endMarker);
             }
         }

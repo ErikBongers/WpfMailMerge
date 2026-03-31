@@ -14,7 +14,7 @@ internal class Cursor<T>(IEnumerator<T> enumerator)
     public void Eat() { this.MoveNext(); }
     public bool MoveNext() { return this.enumerator.MoveNext(); }
     public T Current { get { return this.enumerator.Current; } }
-    public bool EOF() { return this.enumerator.Current is null; } //todo: use this function!
+    public bool EOF() { return this.enumerator.Current is null; }
 
     public void Skip(Func<T, bool> until)
         {
