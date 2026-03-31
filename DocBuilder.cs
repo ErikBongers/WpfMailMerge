@@ -1,6 +1,7 @@
 ﻿using Microsoft.Office.Interop.Word;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
 using Word = Microsoft.Office.Interop.Word;
@@ -329,7 +330,7 @@ internal class DocBuilder
         return fullName;
         }
 
-    private static Section? FindSection(Word.Range searchRange, string startMarker, string endMarker)
+    private Section? FindSection(Word.Range searchRange, string startMarker, string endMarker)
         {
         Word.Range collapseRangeStart = searchRange.Duplicate;
         Word.Find findStart = collapseRangeStart.Find;
@@ -343,11 +344,14 @@ internal class DocBuilder
         findEnd.Text = endMarker;
         findEnd.Execute();
         if (!findEnd.Found)
-            return null; //todo: error: collapse end marker not found
+            {
+            this.errors.Add(ErrorDefs.MissingMarker(endMarker));
+            return null;
+            }
         return new Section { StartMarker = collapseRangeStart.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
         }
     
-    private static Section? FindNextPlaceHolder(Word.Range searchRange)
+    private Section? FindNextPlaceHolder(Word.Range searchRange)
         {
         Word.Range? fieldStart = null;
         Word.Range? markerStart = null;
@@ -389,7 +393,10 @@ internal class DocBuilder
         findEnd.Text = endMarker;
         findEnd.Execute();
         if (!findEnd.Found)
-            return null; //todo: error: end marker not found
+            {
+            this.errors.Add(ErrorDefs.MissingEndOfPlaceHolder(endMarker));
+            return null;
+            }
 
         return new Section { StartMarker = sectionStartMarker.Duplicate, EndMarker = collapseRangeEnd.Duplicate };
         }
