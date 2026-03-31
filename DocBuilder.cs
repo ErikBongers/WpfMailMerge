@@ -90,6 +90,7 @@ internal class DocBuilder
                 .Cast<FilesPlaceHolder>()
                 .Where(p => p.MarkerName == Constants.ATTACH_MARKER)
                 .ToList();
+            this.attachmentPlaceHolders.ForEach(p => this.placeHolders.Remove(p));
 
             if (this.errors.Count > 0)
                 return;
