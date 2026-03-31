@@ -37,7 +37,7 @@ public record class IndexedFieldDef(FieldDef FieldDef, int Index, int? SubIndex)
             }
         if (fieldDef.SubFieldName is not null)
             {
-            var linkedData = excelData.LinkedData[fieldIndex];
+            var linkedData = excelData.LinkedData[fieldIndex]; //field "vestigingen" does not exist in linked data. Check this earlier.
             subIndex = linkedData.Headers.IndexOf(fieldDef.SubFieldName);
             if (subIndex == -1)
                 {
@@ -54,14 +54,28 @@ public record class IndexedFieldDef(FieldDef FieldDef, int Index, int? SubIndex)
         return Create(fieldDef, excelData);
         }
 
-    public string GetValue(List<string> row, ExcelData excelData) //todo: return list of values
+    public string[] GetValues(List<string> row, ExcelData excelData)
         {
         if (this.SubIndex is null)
-            return row[this.Index];
+            return this.ToListIfNeeded(row[this.Index]);
 
-        var key = row[this.Index];
+        var keys = this.ToListIfNeeded(row[this.Index]);
         LinkedExcelData linkedData = excelData.LinkedData[this.Index];
-        var linkedRow = linkedData.GetRow(key);
-        return linkedRow[(int)this.SubIndex];
+        return keys.SelectMany(key =>
+            {
+                if(key != "")
+                    {
+                    var linkedRow = linkedData.GetRow(key); //todo: report error !
+                    return this.ToListIfNeeded(linkedRow[(int)this.SubIndex]);
+                    }
+                return [];
+            }).ToArray();
+        }
+
+    private string[] ToListIfNeeded(string value)
+        {
+        if(!this.FieldDef.IsList)
+            return [value];
+        return value.Split(';');
         }
     }

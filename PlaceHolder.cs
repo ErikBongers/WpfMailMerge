@@ -35,8 +35,8 @@ internal class FieldPlaceHolder : PlaceHolderDef
     
     public int Replace(Word.Range range, List<string> row, ExcelData excelData)
         {
-        var value = this.IndexedFieldDef.GetValue(row, excelData);
-        range.Text = value;
+        var value = this.IndexedFieldDef.GetValues(row, excelData);
+        range.Text = string.Join(", ", value);
         return range.Start;
         }
 
@@ -78,8 +78,8 @@ public class DecoratedStringPlaceHolder : MarkerPlaceHolder
     
     public IEnumerable<string> GetFieldValues(List<string> row, ExcelData excelData)
         {
-        return this.DecoratedString.Inserts.Select(insert => {
-            return insert.IndexedFieldDef.GetValue(row, excelData);
+        return this.DecoratedString.Inserts.SelectMany(insert => {
+            return insert.IndexedFieldDef.GetValues(row, excelData);
             });
         }
 
@@ -106,36 +106,28 @@ public class FilesPlaceHolder : FieldsMarkerPlaceHolder
 
     public int Replace(Word.Range range, List<string> row, Dictionary<string, Word.Document> docs, ExcelData excelData)
         {
+        var returnPos = range.Start;
         var insertList = this.DecoratedString.Inserts
             .OrderByDescending(i => i.Pos);
          
         foreach (var insert in insertList)
             {
-            string fileName = "";
-            if (insert.IndexedFieldDef.SubIndex is null)
-                fileName = row[insert.IndexedFieldDef.Index]; //use generalized function to get value
-            else
-                {
-                var key = row[insert.IndexedFieldDef.Index];
-                if (key == "")
-                    continue;
-                var linkedData = excelData.LinkedData[insert.IndexedFieldDef.Index];
-                var linkedRow = linkedData.GetRow(key);
-                fileName = linkedRow[(int)insert.IndexedFieldDef.SubIndex];
-                }
-            if (fileName == "")
-                continue;
+            string[] fileNames = insert.GetValues(row, excelData);
 
-            Word.Document? insertDoc = null;
-            if (!docs.TryGetValue(fileName, out insertDoc))
-                { 
-                this.Errors.Add(ErrorDefs.CanNotOpenFile(fileName)); //todo: escalate this error.
-                continue;
+            foreach (var fileName in fileNames)
+                {
+                Word.Document? insertDoc = null;
+                if (!docs.TryGetValue(fileName, out insertDoc))
+                    {
+                    this.Errors.Add(ErrorDefs.CanNotOpenFile(fileName)); //todo: escalate this error.
+                    continue;
+                    }
+                range.FormattedText = insertDoc.Content.FormattedText;
+                range.FormattedText = insertDoc.Content.FormattedText;
+                range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 }
-            range.FormattedText = insertDoc.Content.FormattedText;
-            range.Collapse(Word.WdCollapseDirection.wdCollapseStart);
             }
-        return range.Start;
+        return returnPos;
         }
     }
 

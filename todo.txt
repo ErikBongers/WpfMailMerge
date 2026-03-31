@@ -1,3 +1,7 @@
+* Test for robustness
+  : var linkedData = excelData.LinkedData[fieldIndex]; //key field "sdfsdf" does not exist in linked data. Check this early.
+  : Unknown maker %%\n%xxx%INSERT...
+
 * Remove email academiestudent from data.
 
 * DecorateStrings.Decorate() : expand to linkedData!

@@ -5,9 +5,9 @@ namespace WpfMailMerge;
 
 public record class TextInsert (int Pos, IndexedFieldDef IndexedFieldDef)
     {
-    public string GetValue(List<string> row, ExcelData excelData)
+    public string[] GetValues(List<string> row, ExcelData excelData)
         {
-        return this.IndexedFieldDef.GetValue(row, excelData);
+        return this.IndexedFieldDef.GetValues(row, excelData);
         }
     }
 
