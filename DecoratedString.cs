@@ -1,8 +1,16 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace WpfMailMerge;
 
-public record TextInsert (int Pos, IndexedFieldDef IndexedFieldDef);
+public record class TextInsert (int Pos, IndexedFieldDef IndexedFieldDef)
+    {
+    public string GetValue(List<string> row, ExcelData excelData)
+        {
+        return this.IndexedFieldDef.GetValue(row, excelData);
+        }
+    }
+
 public partial class DecoratedString
     {
     private readonly string orgText;

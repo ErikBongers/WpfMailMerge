@@ -1,5 +1,4 @@
-﻿using Microsoft.Office.Interop.Word;
-using Word = Microsoft.Office.Interop.Word;
+﻿using Word = Microsoft.Office.Interop.Word;
 
 namespace WpfMailMerge;
 
@@ -21,55 +20,6 @@ public abstract class PlaceHolderDef
     public virtual bool HasOnlyEmptyValues(List<string> row)  { return false; }
     }
 
-public record class FieldDef(string Name, bool IsList, string? SubFieldName)
-    {
-    public static FieldDef Parse(string text)
-        {
-        bool IsList = text.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
-        string fieldName = text.Replace("*", "").Trim();
-        string? subFieldName = null;
-        int sepPos = fieldName.IndexOf(Constants.SUBFIELD_SEPARATOR);
-        if (sepPos >= 0)
-            {
-            subFieldName = fieldName.Substring(sepPos + 1);
-            fieldName = fieldName.Substring(0, sepPos);
-            }
-        return new FieldDef(fieldName, IsList, subFieldName);
-        }
-    }
-
-public record class IndexedFieldDef(FieldDef FieldDef, int Index, int? SubIndex)
-    {
-    public static (IndexedFieldDef, string?) Create(FieldDef fieldDef, ExcelData excelData)
-        {
-        string? error = null;
-        var fieldIndex = excelData.Headers.FindIndex(h => h == fieldDef.Name);
-        int? subIndex = null;
-        if (fieldIndex == -1)
-            {
-            error = ErrorDefs.FieldNotFound(fieldDef.Name);
-            return (new IndexedFieldDef(fieldDef, -1, -1), error);
-            }
-        if (fieldDef.SubFieldName is not null)
-            {
-            var linkedData = excelData.LinkedData[fieldIndex];
-            subIndex = linkedData.Headers.IndexOf(fieldDef.SubFieldName);
-            if (subIndex == -1)
-                {
-                error = ErrorDefs.FieldNotFound(fieldDef.SubFieldName); //todo: make a more custom error for linked fields.
-                return (new IndexedFieldDef(fieldDef, -1, -1), error);
-                }
-            }
-        return (new IndexedFieldDef(fieldDef, fieldIndex, subIndex), null);
-        }
-
-    public static (IndexedFieldDef, string?) Create(Section section, ExcelData excelData)
-        {
-        FieldDef fieldDef = FieldDef.Parse(section.InbetweenRange.Text);
-        return Create(fieldDef, excelData);
-        }
-    }
-
 internal class FieldPlaceHolder : PlaceHolderDef
     {
     public IndexedFieldDef IndexedFieldDef;
@@ -85,15 +35,7 @@ internal class FieldPlaceHolder : PlaceHolderDef
     
     public int Replace(Word.Range range, List<string> row, ExcelData excelData)
         {
-        if (this.IndexedFieldDef.SubIndex is null)
-            {
-            range.Text = row[this.IndexedFieldDef.Index];
-            return range.Start;
-            }
-        var key = row[this.IndexedFieldDef.Index];
-        LinkedExcelData linkedData = excelData.LinkedData[this.IndexedFieldDef.Index];
-        var linkedRow = linkedData.GetRow(key);
-        var value = linkedRow[(int)this.IndexedFieldDef.SubIndex];
+        var value = this.IndexedFieldDef.GetValue(row, excelData);
         range.Text = value;
         return range.Start;
         }
@@ -134,18 +76,10 @@ public class DecoratedStringPlaceHolder : MarkerPlaceHolder
         return this.DecoratedString.Inserts.Select(i => i.IndexedFieldDef.Index);
         }
     
-    public IEnumerable<string> GetFieldValues(List<string> row, ExcelData excelData) //todo: move to...IndexedFieldDef or TextInsert...or a combination of both?
+    public IEnumerable<string> GetFieldValues(List<string> row, ExcelData excelData)
         {
         return this.DecoratedString.Inserts.Select(insert => {
-            if (insert.IndexedFieldDef.SubIndex is null)
-                return row[insert.IndexedFieldDef.Index];
-            else
-                {
-                var key = row[insert.IndexedFieldDef.Index];
-                var linkedData = excelData.LinkedData[insert.IndexedFieldDef.Index];
-                var linkedRow = linkedData.GetRow(key);
-                return linkedRow[(int)insert.IndexedFieldDef.SubIndex];
-                }
+            return insert.IndexedFieldDef.GetValue(row, excelData);
             });
         }
 
@@ -199,7 +133,7 @@ public class FilesPlaceHolder : FieldsMarkerPlaceHolder
                 continue;
                 }
             range.FormattedText = insertDoc.Content.FormattedText;
-            range.Collapse(WdCollapseDirection.wdCollapseStart);
+            range.Collapse(Word.WdCollapseDirection.wdCollapseStart);
             }
         return range.Start;
         }
