@@ -74,6 +74,8 @@ public record class IndexedFieldDef(FieldDef FieldDef, int Index, int? SubIndex)
 
     private string[] ToListIfNeeded(string value)
         {
+        if (value == "")
+            return [];
         if(!this.FieldDef.IsList)
             return [value];
         return value.Split(';');
