@@ -2,23 +2,23 @@
 
 namespace WpfMailMerge;
 
-public record Insert (int Pos, int Index, FieldDef FieldDef, int? SubFieldIndex);
+public record TextInsert (int Pos, IndexedFieldDef IndexedFieldDef);
 public partial class DecoratedString
     {
     private readonly string orgText;
-    public List<Insert> Inserts = [];
+    public List<TextInsert> Inserts = [];
     public List<string> Errors = [];
     private string templateText;
 
 
-    public DecoratedString(string text, List<string> fieldNames, ExcelData excelData)
+    public DecoratedString(string text, ExcelData excelData)
         {
         this.orgText = text;
         this.templateText = text;
-        this.ParseString(fieldNames, excelData);
+        this.ParseString(excelData);
         }
 
-    private void ParseString(List<string> fieldNames, ExcelData excelData)
+    private void ParseString(ExcelData excelData)
         {
         while(true)
             {
@@ -29,26 +29,11 @@ public partial class DecoratedString
             FieldDef fieldDef = FieldDef.Parse(foundFieldDef);
 
             int pos = match.Index;
-            int index = fieldNames.IndexOf(fieldDef.Name);
             this.templateText = this.templateText.Remove(pos, match.Length);
-            if (index < 0)
-                {
-                this.Errors.Add($"Can't find field {fieldDef.Name}.");
-                continue;
-                }
-            if(fieldDef.SubFieldName is null)
-                this.Inserts.Add(new Insert(pos, index, fieldDef, null));
-            else
-                {
-                var linkedData = excelData.LinkedData[index];
-                var subIndex = linkedData.Headers.IndexOf(fieldDef.SubFieldName);
-                if (index < 0)
-                    {
-                    this.Errors.Add($"Can't find field {fieldDef.SubFieldName}."); //todo: custom msg for linked fields.
-                    continue;
-                    }
-                this.Inserts.Add(new Insert(pos, index, fieldDef, subIndex));
-                }
+            (var indexedFieldDef, string? error) = IndexedFieldDef.Create(fieldDef, excelData);
+            if (error is not null)
+                this.Errors.Add(error);
+            this.Inserts.Add(new TextInsert(pos, indexedFieldDef));
             }
         this.Inserts.Reverse();
         }
@@ -63,7 +48,7 @@ public partial class DecoratedString
         string decorated = this.templateText;
         foreach (var insert in this.Inserts)
             {
-            string value = row[insert.Index];
+            string value = row[insert.IndexedFieldDef.Index];
             decorated = decorated.Insert(insert.Pos, value);
             }
         return decorated;

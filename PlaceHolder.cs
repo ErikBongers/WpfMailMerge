@@ -40,13 +40,13 @@ public record class FieldDef(string Name, bool IsList, string? SubFieldName)
 
 public record class IndexedFieldDef(FieldDef FieldDef, int Index, int? SubIndex)
     {
-    public static (IndexedFieldDef, string?) Create(Section section, ExcelData excelData)
+    public static (IndexedFieldDef, string?) Create(FieldDef fieldDef, ExcelData excelData)
         {
         string? error = null;
-        FieldDef fieldDef = FieldDef.Parse(section.InbetweenRange.Text);
         var fieldIndex = excelData.Headers.FindIndex(h => h == fieldDef.Name);
         int? subIndex = null;
-        if (fieldIndex == -1){
+        if (fieldIndex == -1)
+            {
             error = ErrorDefs.FieldNotFound(fieldDef.Name);
             return (new IndexedFieldDef(fieldDef, -1, -1), error);
             }
@@ -61,6 +61,12 @@ public record class IndexedFieldDef(FieldDef FieldDef, int Index, int? SubIndex)
                 }
             }
         return (new IndexedFieldDef(fieldDef, fieldIndex, subIndex), null);
+        }
+
+    public static (IndexedFieldDef, string?) Create(Section section, ExcelData excelData)
+        {
+        FieldDef fieldDef = FieldDef.Parse(section.InbetweenRange.Text);
+        return Create(fieldDef, excelData);
         }
     }
 
@@ -119,33 +125,33 @@ public class DecoratedStringPlaceHolder : MarkerPlaceHolder
     public DecoratedStringPlaceHolder(Section section, List<string> fieldNames, ExcelData excelData)
         : base(section)
         {
-        this.DecoratedString = new DecoratedString(this.MarkerText, fieldNames, excelData);
+        this.DecoratedString = new DecoratedString(this.MarkerText, excelData);
         this.Errors.AddRange(this.DecoratedString.Errors);
         }
 
     public IEnumerable<int> GetFieldIndices()
         {
-        return this.DecoratedString.Inserts.Select(i => i.Index);
+        return this.DecoratedString.Inserts.Select(i => i.IndexedFieldDef.Index);
         }
     
-    public IEnumerable<string> GetFieldValues(List<string> row, ExcelData excelData)
+    public IEnumerable<string> GetFieldValues(List<string> row, ExcelData excelData) //todo: move to...IndexedFieldDef or TextInsert...or a combination of both?
         {
         return this.DecoratedString.Inserts.Select(insert => {
-            if (insert.SubFieldIndex is null)
-                return row[insert.Index];
+            if (insert.IndexedFieldDef.SubIndex is null)
+                return row[insert.IndexedFieldDef.Index];
             else
                 {
-                var key = row[insert.Index];
-                var linkedData = excelData.LinkedData[insert.Index];
+                var key = row[insert.IndexedFieldDef.Index];
+                var linkedData = excelData.LinkedData[insert.IndexedFieldDef.Index];
                 var linkedRow = linkedData.GetRow(key);
-                return linkedRow[(int)insert.SubFieldIndex];
+                return linkedRow[(int)insert.IndexedFieldDef.SubIndex];
                 }
             });
         }
 
     public override bool HasOnlyEmptyValues(List<string> row)
         {
-        return this.DecoratedString.Inserts.All(i => row[i.Index].Trim().Length == 0);
+        return this.DecoratedString.Inserts.All(i => row[i.IndexedFieldDef.Index].Trim().Length == 0);
         }
     }
 
@@ -172,16 +178,16 @@ public class FilesPlaceHolder : FieldsMarkerPlaceHolder
         foreach (var insert in insertList)
             {
             string fileName = "";
-            if (insert.SubFieldIndex is null)
-                fileName = row[insert.Index];
+            if (insert.IndexedFieldDef.SubIndex is null)
+                fileName = row[insert.IndexedFieldDef.Index]; //use generalized function to get value
             else
                 {
-                var key = row[insert.Index]; //todo: this code is repeated a lot. Put it in Insert class? Including the if-statement above.
+                var key = row[insert.IndexedFieldDef.Index];
                 if (key == "")
                     continue;
-                var linkedData = excelData.LinkedData[insert.Index];
+                var linkedData = excelData.LinkedData[insert.IndexedFieldDef.Index];
                 var linkedRow = linkedData.GetRow(key);
-                fileName = linkedRow[(int)insert.SubFieldIndex];
+                fileName = linkedRow[(int)insert.IndexedFieldDef.SubIndex];
                 }
             if (fileName == "")
                 continue;
