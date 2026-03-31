@@ -187,7 +187,7 @@ internal class ExcelDataSource
         if (linkCount == 0)
             return null;
         if (linkCount > 1){
-            this.errors.Add($"Too many link fields in workbook {Path.GetFileName(rangeDef.BookName)} range {rangeDef.DisplayName}.");
+            this.errors.Add(ErrorDefs.TooManyLinkFields(Path.GetFileName(rangeDef.BookName), rangeDef.DisplayName));
             return null;
             }
 
