@@ -193,6 +193,8 @@ internal partial class MailMerge
             case Progress.StatusType.Progress:
                 var progressInfo = status.GetProgressInfo();
                 this.progressListener.ReportProgress(progressInfo.CurrentValue, progressInfo.MaxValue);
+                if (progressInfo.CurrentValue >= progressInfo.MaxValue)
+                    this.IsRunning = false;
                 break;
             case Progress.StatusType.Error:
                 var error = status.GetError();
@@ -287,8 +289,8 @@ internal partial class MailMerge
                 MailFileInfo mailFileInfo = await channelReader.ReadAsync();
                 mailSender.SendOneMail(mailFileInfo.FileName);
                 progress.Report(new Progress.Status(0, mailFileInfo.Count, mailFileInfo.Index + 1));
-                if(mailFileInfo.Count == mailFileInfo.Index + 1)
-                    progress.Report(new Progress.Status("All mails have been sent."));
+                if(mailFileInfo.Count == mailFileInfo.Index + 1){
+                    progress.Report(new Progress.Status("All mails have been sent."));}
                 }
             }
         catch (ChannelClosedException)
