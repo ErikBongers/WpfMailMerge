@@ -96,6 +96,76 @@ internal class WordCopyPaste : IWordToEmailStrategy
         }
     }
 
+internal class WordInsertFormatted : IWordToEmailStrategy
+    {
+    private JsonSettings settings;
+
+    public WordInsertFormatted(JsonSettings settings)
+        {
+        this.settings = settings;
+        }
+
+    public void SaveDoc(Document doc, string fullName)
+        {
+        doc.SaveAs2(FileName: fullName);
+        }
+
+    public OpaqueDoc OpenDoc(Word.Application word, string fileName)
+        {
+        return new OpaqueDoc { doc = word.Documents.Open(fileName, ReadOnly: true, Visible: false) };
+        }
+    
+    public void CloseDoc(OpaqueDoc doc)
+        {
+        ((Word.Document)doc.doc).Close();
+        }
+
+    public void MarkDocAsSent(OpaqueDoc doc, string fileName)
+        {
+        string sentFileName = Path.GetFileName(fileName);
+        string path = Path.GetDirectoryName(fileName)!;
+        File.Move(fileName, Path.Combine(path, Constants.SENT_FILE_PREFIX + sentFileName));
+        }
+
+    public string[] GetRecipients(OpaqueDoc doc)
+        {
+        return ((Word.Document)doc.doc).Variables[Constants.VAR_RECIPIENTS].Value.Split(';');
+        }
+    
+    public string[] GetAttachments(OpaqueDoc doc)
+        {
+        string[] attachments = [];
+
+        try
+            {
+            attachments = ((Word.Document)doc.doc).Variables[Constants.VAR_ATTACHMENTS].Value.Split(';');
+            }
+        catch { }
+        return attachments;
+        }
+
+    public string GetSubject(OpaqueDoc doc)
+        {
+        return ((Word.Document)doc.doc).Variables[Constants.VAR_SUBJECT].Value;
+        }
+
+    public void MaybeCopy(OpaqueDoc doc)
+        {
+        Thread.Sleep(settings.DelayAfterClipboardCopy); //sometimes the clipboard is not ready yet, so we wait a bit
+        }
+
+    public void FillEmail(OpaqueDoc doc, MailItem mailItem)
+        {
+        var inspector = mailItem.GetInspector;
+        inspector.Activate();
+
+        Word.Document mailDoc = (Word.Document)inspector.WordEditor;
+        mailItem.Display();
+        Thread.Sleep(settings.DelayAfterClipboardCopy); //sometimes the clipboard is not ready yet, so we wait a bit
+        mailDoc.Content.FormattedText = ((Word.Document)doc.doc).Content.FormattedText;
+        }
+    }
+
 internal class WordToRtfEmail : IWordToEmailStrategy
     {
 

@@ -214,7 +214,8 @@ internal partial class MailMerge
                     return; 
                     }
 
-                //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
+                //IWordToEmailStrategy wordToEmail = new WordInsertFormatted(this.viewModel.ScrapeSettings());
+                //IWordToEmailStrategy wordToEmail = new WordCopyPaste(this.viewModel.ScrapeSettings());
                 IWordToEmailStrategy wordToEmail = new WordToRtfEmail();
 
                 var _ = Task.Run(() => this.SendMails(this.viewModel.ScrapeSettings(), progressIndicator, mailDocChannel.Reader, wordToEmail));
