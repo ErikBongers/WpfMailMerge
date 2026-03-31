@@ -240,6 +240,12 @@ internal partial class MailMerge
         for (int i = startIndex; i < excelData.Rows.Count; i++)
             {
             string fileName = docBuilder.BuildDoc(i);
+            if (docBuilder.errors.Count > 0)
+                {
+                this.viewModel.Errors = string.Join('\n', docBuilder.errors);
+                docBuilder.CloseAll();
+                return;
+                }            
             if (!channelWriter.TryWrite(new MailFileInfo { FileName = fileName, Index = i, Count = excelData.Rows.Count }))
                 {
                 throw new Exception("Can't write to channel.");

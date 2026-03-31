@@ -23,7 +23,7 @@ internal class DocBuilder
     private List<int> mailToIndices = [];
     private DecoratedStringPlaceHolder? subject;
     private Word.Documents documents;
-    private List<string> errors = [];
+    public List<string> errors = [];
     private readonly IWordToEmailStrategy wordToEmail;
 
     public DocBuilder(string templateDocPath, ExcelData excelData, IWordToEmailStrategy wordToEmail)
@@ -298,8 +298,12 @@ internal class DocBuilder
                     replacedUpToPos = beginSection.Replace(doc.Range(placeHolder.Pos, placeHolder.Pos + 1));
                 else if (placeHolder is EndSectionPlaceHolder endSection)
                     replacedUpToPos = endSection.Replace(doc, this.placeHolders, this.excelData.GetRow(rowIndex));
+                if (placeHolder.Errors.Count > 0)
+                    {
+                    this.errors.AddRange(placeHolder.Errors);
+                    return fullName;
+                    }
                 }
-
             //Add email variables (attachments, subject, mailto).
             List<string> attachments = [];
             foreach (var attachementPlaceHolder in this.attachmentPlaceHolders)
@@ -324,7 +328,7 @@ internal class DocBuilder
             }
         finally
             {
-            doc.Close();
+            doc.Close(SaveChanges: false); //should already have been saved unless error.
             Marshal.FinalReleaseComObject(doc);
             }
         return fullName;

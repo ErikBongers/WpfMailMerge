@@ -119,7 +119,7 @@ public class FilesPlaceHolder : FieldsMarkerPlaceHolder
                 Word.Document? insertDoc = null;
                 if (!docs.TryGetValue(fileName, out insertDoc))
                     {
-                    this.Errors.Add(ErrorDefs.CanNotOpenFile(fileName)); //todo: escalate this error.
+                    this.Errors.Add(ErrorDefs.CanNotOpenFile(fileName));
                     continue;
                     }
                 range.FormattedText = insertDoc.Content.FormattedText;
