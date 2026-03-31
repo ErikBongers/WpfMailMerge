@@ -1,3 +1,5 @@
+* rtf mail - no images!!!
+
 * stress test also on work laptop.
 
 * check TODOs.

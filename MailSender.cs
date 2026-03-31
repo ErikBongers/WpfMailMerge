@@ -84,10 +84,6 @@ internal class MailSender
             if (!string.IsNullOrEmpty(att))
                 {
                 mailItem.Attachments.Add(att);
-                //string fileName = Path.GetFileName(att);
-                //string neWDir = @"C:\NoSharePoint\Attachments";
-                //string newPath = Path.Combine(neWDir, fileName);
-                //mailItem.Attachments.Add(newPath);
                 }
             }
 
@@ -108,7 +104,6 @@ internal class MailSender
         Marshal.FinalReleaseComObject(this.word);
         Marshal.FinalReleaseComObject(this.accounts);
         Marshal.FinalReleaseComObject(this.session);
-        //this.outlook.Quit();
         Marshal.FinalReleaseComObject(this.outlook);
         }
     
