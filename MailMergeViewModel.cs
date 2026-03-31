@@ -326,7 +326,7 @@ public class MailMergeViewModel : INotifyPropertyChanged, IProgressObservable
         };
         }
 
-    private static Task<List<MailAccount>> LoadMailAccounts() //todo: can I remove the await and just return the tast from Task.Run()?
+    private static Task<List<MailAccount>> LoadMailAccounts()
         {
         return Task.Run(() => MailMerge.GetSendersAsync());
         }

@@ -405,7 +405,7 @@ internal class DocBuilder
         {
         foreach (var doc in this.insertDocs.Values)
             {
-            doc.Close();//todo: wrap in exception handler?
+            doc.Close();
             Marshal.FinalReleaseComObject(doc);
             }
         this.insertDocs.Clear();

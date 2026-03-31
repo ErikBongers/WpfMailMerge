@@ -203,8 +203,6 @@ internal partial class MailMerge
                     IsRunning = false;
                     return; 
                     }
-                //assuming we pressed Start.
-                data.Truncate(20); //todo: TEST!
 
                 //IWordToEmailStrategy wordToEmail = new WordCopyPaste(settings);
                 IWordToEmailStrategy wordToEmail = new WordToRtfEmail();
