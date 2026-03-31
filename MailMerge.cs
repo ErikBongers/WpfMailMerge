@@ -28,7 +28,16 @@ internal partial class MailMerge
     private Channel<ExcelRequest> excelChannel;
     private Channel<MailFileInfo> mailDocChannel;
 
-    public bool IsRunning { get; private set; } = false;
+    private bool isRunning = false;
+    public bool IsRunning
+        {
+        get { return isRunning; }
+        private set
+            {
+            isRunning = value;
+            this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
     public int RequestedStartIndex { get; internal set; } = 0;
     public bool HasRecoveredStartIndex { get; private set; } = false;
     private static readonly List<RangeDef> defaultNamedRange = [new RangeDef {BookName="", SheetName="", Name="..", Range="",  RangeType = RangeType.Waiting}];
@@ -138,26 +147,21 @@ internal partial class MailMerge
 
     public void Start()
         {
-        SetRunningState(true);
+        IsRunning = true;
         if (!this.PerformChecks())
         {
-            SetRunningState(false);
+            IsRunning = false;
             return;
         }
         if (this.viewModel.SelectedNamedRange == "")
         {
-            SetRunningState(false);
+            IsRunning = false;
             return;
         }
         this.progressListener.ReportInfo("Preparing data...");
         this.excelChannel.Writer.TryWrite(new ExcelRequest(new DataParams(this.viewModel.DataSourceFileName, this.viewModel.SelectedNamedRange)));
         }
 
-    private void SetRunningState(bool runningState)
-    {
-        this.IsRunning = runningState;
-        this.RunningStateChanged?.Invoke(this, EventArgs.Empty);
-    }
     private void SetStartIndex(int startIndex, bool recovered)
         {
         this.RequestedStartIndex = startIndex;
@@ -196,7 +200,7 @@ internal partial class MailMerge
                 this.viewModel.Warnings = string.Join("\n", data.warnings);
                 if (data.errors.Count > 0)
                     { 
-                    SetRunningState(false);
+                    IsRunning = false;
                     return; 
                     }
                 //assuming we pressed Start.
@@ -207,7 +211,6 @@ internal partial class MailMerge
 
                 var _ = Task.Run(() => this.SendMails(this.viewModel.ScrapeSettings(), progressIndicator, mailDocChannel.Reader, wordToEmail));
                 var __ = Task.Run(() => this.BuildTheDocs(this.viewModel.ScrapeSettings(), data, this.cancelToken.Token, progressIndicator, mailDocChannel.Writer, wordToEmail, this.RequestedStartIndex));
-                SetRunningState(false);
                 break;
             }
         }
