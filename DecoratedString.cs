@@ -26,7 +26,7 @@ public partial class DecoratedString
             if (!match.Success)
                 break;
             string foundFieldDef = match.Groups[1].Value;
-            FieldDef fieldDef = FieldPlaceHolder.ParseFieldDef(foundFieldDef);
+            FieldDef fieldDef = FieldDef.Parse(foundFieldDef);
 
             int pos = match.Index;
             int index = fieldNames.IndexOf(fieldDef.Name);

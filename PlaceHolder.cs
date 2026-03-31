@@ -21,70 +21,80 @@ public abstract class PlaceHolderDef
     public virtual bool HasOnlyEmptyValues(List<string> row)  { return false; }
     }
 
-public record FieldDef(string Name, bool IsList, string? SubFieldName);
+public record class FieldDef(string Name, bool IsList, string? SubFieldName)
+    {
+    public static FieldDef Parse(string text)
+        {
+        bool IsList = text.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
+        string fieldName = text.Replace("*", "").Trim();
+        string? subFieldName = null;
+        int sepPos = fieldName.IndexOf(Constants.SUBFIELD_SEPARATOR);
+        if (sepPos >= 0)
+            {
+            subFieldName = fieldName.Substring(sepPos + 1);
+            fieldName = fieldName.Substring(0, sepPos);
+            }
+        return new FieldDef(fieldName, IsList, subFieldName);
+        }
+    }
+
+public record class IndexedFieldDef(FieldDef FieldDef, int Index, int? SubIndex)
+    {
+    public static (IndexedFieldDef, string?) Create(Section section, ExcelData excelData)
+        {
+        string? error = null;
+        FieldDef fieldDef = FieldDef.Parse(section.InbetweenRange.Text);
+        var fieldIndex = excelData.Headers.FindIndex(h => h == fieldDef.Name);
+        int? subIndex = null;
+        if (fieldIndex == -1){
+            error = ErrorDefs.FieldNotFound(fieldDef.Name);
+            return (new IndexedFieldDef(fieldDef, -1, -1), error);
+            }
+        if (fieldDef.SubFieldName is not null)
+            {
+            var linkedData = excelData.LinkedData[fieldIndex];
+            subIndex = linkedData.Headers.IndexOf(fieldDef.SubFieldName);
+            if (subIndex == -1)
+                {
+                error = ErrorDefs.FieldNotFound(fieldDef.SubFieldName); //todo: make a more custom error for linked fields.
+                return (new IndexedFieldDef(fieldDef, -1, -1), error);
+                }
+            }
+        return (new IndexedFieldDef(fieldDef, fieldIndex, subIndex), null);
+        }
+    }
 
 internal class FieldPlaceHolder : PlaceHolderDef
     {
-    public bool IsList { get; private set; }
-    public int FieldIndex { get; private set; }
-    public string FieldName { get; private set; } //only for testing
-    public int? SubFieldIndex { get; private set; }
-    public string? SubFieldName { get; private set; } //only for testing
+    public IndexedFieldDef IndexedFieldDef;
 
     public FieldPlaceHolder(Section section, ExcelData excelData)
         : base(PlaceHolderType.Field, section)
         {
-        FieldDef fieldDef = ParseFieldDef(this.InnerText);
-        this.FieldName = fieldDef.Name;
-        this.FieldIndex = excelData.Headers.FindIndex(h => h == this.FieldName);
-        this.IsList = fieldDef.IsList; //todo: just include the FieldDef instead of copying all the values.
-        if (this.FieldIndex == -1)
-            this.Errors.Add(ErrorDefs.FieldNotFound(this.FieldName));
-        if (fieldDef.SubFieldName is not null)
-            {
-            var linkedData = excelData.LinkedData[this.FieldIndex];
-            var subIndex = linkedData.Headers.IndexOf(fieldDef.SubFieldName);
-            if (this.FieldIndex == -1)
-                {
-                this.Errors.Add(ErrorDefs.FieldNotFound(fieldDef.SubFieldName)); //todo: make a more custom error for linked fields.
-                return;
-                }
-            this.SubFieldName = fieldDef.SubFieldName;
-            this.SubFieldIndex = subIndex;
-            }
+        (var indexedFieldDef , var error) = IndexedFieldDef.Create(section, excelData);
+        this.IndexedFieldDef = indexedFieldDef;
+        if (error is not null)
+            this.Errors.Add(error);
         }
-
+    
     public int Replace(Word.Range range, List<string> row, ExcelData excelData)
         {
-        if (this.SubFieldIndex is null)
+        if (this.IndexedFieldDef.SubIndex is null)
             {
-            range.Text = row[this.FieldIndex];
+            range.Text = row[this.IndexedFieldDef.Index];
             return range.Start;
             }
-        var key = row[this.FieldIndex];
-        LinkedExcelData linkedData = excelData.LinkedData[this.FieldIndex];
+        var key = row[this.IndexedFieldDef.Index];
+        LinkedExcelData linkedData = excelData.LinkedData[this.IndexedFieldDef.Index];
         var linkedRow = linkedData.GetRow(key);
-        var value = linkedRow[(int)this.SubFieldIndex];
+        var value = linkedRow[(int)this.IndexedFieldDef.SubIndex];
         range.Text = value;
         return range.Start;
         }
 
     public override bool HasOnlyEmptyValues(List<string> row)
         {
-        return row[this.FieldIndex].Trim().Length == 0;
-        }
-    public static FieldDef ParseFieldDef(string text)
-        {
-        bool IsList = text.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
-        string fieldName = text.Replace("*", "").Trim();
-        string? subFieldName = null;
-        int sepPos = fieldName.IndexOf(Constants.SUBFIELD_SEPARATOR);
-        if(sepPos >= 0)
-            {
-            subFieldName = fieldName.Substring(sepPos + 1);
-            fieldName = fieldName.Substring(0, sepPos);
-            }
-        return new FieldDef(fieldName, IsList, subFieldName);
+        return row[this.IndexedFieldDef.Index].Trim().Length == 0;
         }
     }
 
