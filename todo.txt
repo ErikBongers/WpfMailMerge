@@ -1,3 +1,4 @@
+* Lijntje uitleg...optional +NL/+NEWLINE/+LINE
 * rtf mail - no images!!!
 
 * stress test also on work laptop.
