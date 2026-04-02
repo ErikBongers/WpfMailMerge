@@ -17,5 +17,8 @@ public static class Constants
     public const string COLLAPSE_MARKER = "COLLAPSE";
     public const string END_COLLAPSE_MARKER = "ENDCOLLAPSE";
     public const char SUBFIELD_SEPARATOR = '#';
+    public const string MARKER_OPTION_NEWLINE = "+LINE";
+
+    public static readonly string[] AllMarkerOptions = [MARKER_OPTION_NEWLINE];
     }
 

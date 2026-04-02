@@ -6,12 +6,30 @@ using System.Threading.Tasks;
 
 namespace WpfMailMerge;
 
-public record class FieldDef(string Name, bool IsList, string? SubFieldName)
+public class FieldDef
     {
+    public string Text;
+    public string Name;
+    public bool IsList;
+    public string? SubFieldName;
+    public HashSet<string> Options { get; private set; }
+
+    public FieldDef(string text, string name, bool isList, string? subFieldName, HashSet<string> options)
+        {
+        this.Text = text;
+        this.Name = name;
+        this.IsList = isList;
+        this.SubFieldName = subFieldName;
+        this.Options = options;
+        }
+
+
     public static FieldDef Parse(string text)
         {
-        bool IsList = text.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
-        string fieldName = text.Replace("*", "").Trim();
+        (var options, var textWithoutOptions) = Tools.ExtractOptions(text, Constants.AllMarkerOptions);
+
+        bool IsList = textWithoutOptions.Contains('*'); //a bit loose - this doesn't check for position of the '*'.
+        string fieldName = textWithoutOptions.Replace("*", "").Trim();
         string? subFieldName = null;
         int sepPos = fieldName.IndexOf(Constants.SUBFIELD_SEPARATOR);
         if (sepPos >= 0)
@@ -19,7 +37,7 @@ public record class FieldDef(string Name, bool IsList, string? SubFieldName)
             subFieldName = fieldName.Substring(sepPos + 1);
             fieldName = fieldName.Substring(0, sepPos);
             }
-        return new FieldDef(fieldName, IsList, subFieldName);
+        return new FieldDef(textWithoutOptions, fieldName, IsList, subFieldName, options);
         }
     }
 

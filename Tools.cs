@@ -31,4 +31,20 @@ public static class Tools
         return generatedPath;
         }
 
+    public static (HashSet<string>, string) ExtractOptions(string markerText, IEnumerable<string> allOptions)
+        {
+        HashSet<string> options = [];
+        string text = markerText;
+
+        foreach (string optionName in allOptions)
+            {
+            int foundPos = text.IndexOf(" " + optionName); //todo: We're only checking a leading space. Not a trailing one or EOF.
+            if (foundPos < 0)
+                continue;
+            options.Add(optionName);
+            text = text.Replace(optionName, "");
+            }
+
+        return (options, text);
+        }
     }

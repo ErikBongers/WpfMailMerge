@@ -16,44 +16,43 @@ public partial class DecoratedString
     private readonly string orgText;
     public List<TextInsert> Inserts = [];
     public List<string> Errors = [];
-    private string templateText;
-
+    public string TemplateText { get; private set ; }
 
     public DecoratedString(string text, ExcelData excelData)
         {
         this.orgText = text;
-        this.templateText = text;
-        this.ParseString(excelData);
+        this.TemplateText = this.ParseString(excelData, text);
         }
 
-    private void ParseString(ExcelData excelData)
+    private string ParseString(ExcelData excelData, string text)
         {
         while(true)
             {
-            Match match = RxFieldPlaceHolder().Match(this.templateText);
+            Match match = RxFieldPlaceHolder().Match(text);
             if (!match.Success)
                 break;
             string foundFieldDef = match.Groups[1].Value;
             FieldDef fieldDef = FieldDef.Parse(foundFieldDef);
 
             int pos = match.Index;
-            this.templateText = this.templateText.Remove(pos, match.Length);
+            text = text.Remove(pos, match.Length);
             (var indexedFieldDef, string? error) = IndexedFieldDef.Create(fieldDef, excelData);
             if (error is not null)
                 this.Errors.Add(error);
             this.Inserts.Add(new TextInsert(pos, indexedFieldDef));
             }
         this.Inserts.Reverse();
+        return text;
         }
 
     public bool IsFieldsWithoutText()
         {
-        return this.templateText.Trim().Length == 0;
+        return this.TemplateText.Trim().Length == 0;
         }
 
     public string Decorate(List<string> row)
         {
-        string decorated = this.templateText;
+        string decorated = this.TemplateText;
         foreach (var insert in this.Inserts)
             {
             string value = row[insert.IndexedFieldDef.Index];

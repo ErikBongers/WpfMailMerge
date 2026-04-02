@@ -36,7 +36,10 @@ internal class FieldPlaceHolder : PlaceHolderDef
     public int Replace(Word.Range range, List<string> row, ExcelData excelData)
         {
         var value = this.IndexedFieldDef.GetValues(row, excelData);
-        range.Text = string.Join(", ", value);
+        if(this.IndexedFieldDef.FieldDef.Options.Contains(Constants.MARKER_OPTION_NEWLINE))
+            range.Text = string.Join("\n", value);
+        else
+            range.Text = string.Join(", ", value);
         return range.Start;
         }
 
@@ -63,12 +66,16 @@ public abstract class MarkerPlaceHolder : PlaceHolderDef
 public class DecoratedStringPlaceHolder : MarkerPlaceHolder
     {
     public DecoratedString DecoratedString { get; private set; }
+    public string TextWithoutFields { get => this.DecoratedString.TemplateText; }
+    public HashSet<string> Options { get; private set; }
+    public string TextWithoutFieldsOrOptions { get; private set; }
 
     public DecoratedStringPlaceHolder(Section section, List<string> fieldNames, ExcelData excelData)
         : base(section)
         {
         this.DecoratedString = new DecoratedString(this.MarkerText, excelData);
         this.Errors.AddRange(this.DecoratedString.Errors);
+        (this.Options, this.TextWithoutFieldsOrOptions) = Tools.ExtractOptions(this.TextWithoutFields, Constants.AllMarkerOptions);
         }
 
     public IEnumerable<int> GetFieldIndices()
