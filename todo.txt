@@ -1,3 +1,5 @@
+* When word crashes in beginning of BuildDoc -> most likely word has some hanging unsaved docs, even if no process active. Open Word and probably some docs will pop up.
+
 * Allow fields in included files?
   > first speed up parsing?
 

@@ -25,6 +25,7 @@ internal class DocBuilder
     private Word.Documents documents;
     public List<string> errors = [];
     private readonly IWordToEmailStrategy wordToEmail;
+    private bool giveWordTimetoStart = true;
 
     public DocBuilder(string templateDocPath, ExcelData excelData, IWordToEmailStrategy wordToEmail)
         {
@@ -283,6 +284,11 @@ internal class DocBuilder
         {
         string fullName = Path.Combine(this.mergedDocsDir, $"{Constants.MERGED_FILE_PREFIX}{rowIndex}.docx");
         Word.Document doc = this.documents.Add(Visible: false);
+        if (this.giveWordTimetoStart)
+            {
+            this.giveWordTimetoStart = false;
+            Thread.Sleep(100);//next statemet seems to crash sometimes...mayby give it some time.
+            }
         doc.Content.FormattedText = this.templateDoc.Content;
         try
             {
