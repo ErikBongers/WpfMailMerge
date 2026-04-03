@@ -36,7 +36,9 @@ internal class FieldPlaceHolder : PlaceHolderDef
     public int Replace(Word.Range range, List<string> row, ExcelData excelData)
         {
         var value = this.IndexedFieldDef.GetValues(row, excelData);
-        if(this.IndexedFieldDef.FieldDef.Options.Contains(Constants.MARKER_OPTION_NEWLINE))
+        if(this.IndexedFieldDef.FieldDef.Options.Contains(Constants.MARKER_OPTION_EMPTYLINE))
+            range.Text = string.Join("\n\n", value);
+        else if(this.IndexedFieldDef.FieldDef.Options.Contains(Constants.MARKER_OPTION_NEWLINE))
             range.Text = string.Join("\n", value);
         else
             range.Text = string.Join(", ", value);
