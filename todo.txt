@@ -1,4 +1,6 @@
-* Lijntje uitleg...optional +NL/+NEWLINE/+LINE
+* Allow fields in included files?
+  > first speed up parsing?
+
 * rtf mail - no images!!!
 
 * stress test also on work laptop.
@@ -15,7 +17,7 @@
 
 * Test nested collapses.
 
-* Add %%SET FIELD_SEPARATOR #%%
+* Add %%SET SUBFIELD_SEPARATOR #%%
   > to allow settings set within the template.
 
 * collapse empty table rows.
@@ -32,9 +34,6 @@
       : %%: 
   > or an option for collapse?
   : %%COLLAPSE EMPTY_LINES ?
-
-* Allow fields in included files?
-  > version 37...
 
 * Auto merge: if linked table only has one column: skip it - no additional data. It's probably just a combobox list.
 
